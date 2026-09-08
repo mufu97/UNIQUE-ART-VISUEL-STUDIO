@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { Pool } = require("pg");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -12,6 +13,9 @@ const MAX_BODY_SIZE = 80 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 120;
 const requestCounts = new Map();
+const databasePool = process.env.DATABASE_URL
+    ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+    : null;
 
 if (IS_PRODUCTION && !process.env.ADMIN_API_KEY) {
     throw new Error("ADMIN_API_KEY doit être configurée en production.");
@@ -38,15 +42,45 @@ function ensureStore() {
     }
 }
 
-function readStore() {
+async function readStore() {
+    if (databasePool) {
+        const result = await databasePool.query("SELECT payload FROM app_store WHERE id = 1");
+        return result.rows[0]?.payload || { clients: [], discussions: [], orders: [], creations: [], actualites: [] };
+    }
+
     ensureStore();
     return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
 }
 
-function writeStore(store) {
+async function writeStore(store) {
+    if (databasePool) {
+        await databasePool.query(
+            "INSERT INTO app_store (id, payload) VALUES (1, $1::jsonb) ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload",
+            [JSON.stringify(store)]
+        );
+        return;
+    }
+
     const temporaryFile = `${DATA_FILE}.tmp`;
     fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2));
     fs.renameSync(temporaryFile, DATA_FILE);
+}
+
+async function initialiserStockage() {
+    if (!databasePool) {
+        ensureStore();
+        return;
+    }
+
+    await databasePool.query("CREATE TABLE IF NOT EXISTS app_store (id integer PRIMARY KEY, payload jsonb NOT NULL)");
+    const result = await databasePool.query("SELECT id FROM app_store WHERE id = 1");
+    if (result.rowCount === 0) {
+        ensureStore();
+        await databasePool.query(
+            "INSERT INTO app_store (id, payload) VALUES (1, $1::jsonb)",
+            [fs.readFileSync(DATA_FILE, "utf8")]
+        );
+    }
 }
 
 function sendJson(response, status, payload) {
@@ -155,7 +189,7 @@ function isAdminRequest(request) {
     return crypto.timingSafeEqual(Buffer.from(suppliedKey), Buffer.from(configuredKey));
 }
 
-function handleApi(request, response, url) {
+async function handleApi(request, response, url) {
     if (request.method === "GET" && url.pathname === "/api/health") {
         sendJson(response, 200, { ok: true, service: "unique-art-backend" });
         return true;
@@ -167,7 +201,7 @@ function handleApi(request, response, url) {
             return true;
         }
 
-        const store = readStore();
+        const store = await readStore();
         const orders = store.orders || [];
         const totalPrevisionnel = orders.reduce((total, order) => total + (Number(order.prix) || 0), 0);
         const commandesConfirmees = orders.filter((order) => String(order.statut).toLowerCase() === "confirmée");
@@ -201,17 +235,17 @@ function handleApi(request, response, url) {
     }
 
     if (request.method === "GET" && url.pathname === "/api/discussions") {
-        sendJson(response, 200, readStore().discussions);
+        sendJson(response, 200, (await readStore()).discussions);
         return true;
     }
 
     if (request.method === "GET" && url.pathname === "/api/creations") {
-        sendJson(response, 200, readStore().creations || []);
+        sendJson(response, 200, (await readStore()).creations || []);
         return true;
     }
 
     if (request.method === "GET" && url.pathname === "/api/actualites") {
-        sendJson(response, 200, readStore().actualites || []);
+        sendJson(response, 200, (await readStore()).actualites || []);
         return true;
     }
 
@@ -249,7 +283,7 @@ function handleApi(request, response, url) {
                 return;
             }
 
-            const store = readStore();
+            const store = await readStore();
             store.actualites = store.actualites || [];
             const actualite = {
                 id: Date.now(),
@@ -259,20 +293,20 @@ function handleApi(request, response, url) {
                 date: new Date().toISOString()
             };
             store.actualites.push(actualite);
-            writeStore(store);
+            await writeStore(store);
             sendJson(response, 201, actualite);
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
     if (request.method === "POST" && url.pathname === "/api/creations") {
-        readBody(request).then((body) => {
+        readBody(request).then(async (body) => {
             if (!body.title || (!body.image && !body.pdf && !body.video)) {
                 sendJson(response, 400, { error: "Un titre et un fichier sont requis." });
                 return;
             }
 
-            const store = readStore();
+            const store = await readStore();
             store.creations = store.creations || [];
             const creation = {
                 id: Date.now(),
@@ -285,20 +319,20 @@ function handleApi(request, response, url) {
                 date: new Date().toISOString()
             };
             store.creations.push(creation);
-            writeStore(store);
+            await writeStore(store);
             sendJson(response, 201, creation);
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
     if (request.method === "POST" && url.pathname === "/api/discussions") {
-        readBody(request).then((body) => {
+        readBody(request).then(async (body) => {
             if (!body.name || !body.type || !body.message) {
                 sendJson(response, 400, { error: "Nom, type et message requis." });
                 return;
             }
 
-            const store = readStore();
+            const store = await readStore();
             store.blocks = store.blocks || [];
             if (store.blocks.some((blockedName) => blockedName.toLowerCase() === String(body.name).trim().toLowerCase())) {
                 sendJson(response, 403, { error: "Ce profil est bloqué par le studio." });
@@ -313,7 +347,7 @@ function handleApi(request, response, url) {
                 replies: []
             };
             store.discussions.push(discussion);
-            writeStore(store);
+            await writeStore(store);
             sendJson(response, 201, discussion);
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
@@ -327,22 +361,22 @@ function handleApi(request, response, url) {
 
     if (discussionMatch && request.method === "DELETE" && !discussionMatch[2]) {
         const discussionId = Number(discussionMatch[1]);
-        const store = readStore();
+        const store = await readStore();
         store.discussions = store.discussions.filter((discussion) => discussion.id !== discussionId);
-        writeStore(store);
+        await writeStore(store);
         sendJson(response, 200, { ok: true });
         return true;
     }
 
     if (discussionMatch && request.method === "POST" && discussionMatch[2] === "reply") {
-        readBody(request).then((body) => {
+        readBody(request).then(async (body) => {
             if (!body.message) {
                 sendJson(response, 400, { error: "Une réponse est requise." });
                 return;
             }
 
             const discussionId = Number(discussionMatch[1]);
-            const store = readStore();
+            const store = await readStore();
             const discussion = store.discussions.find((item) => item.id === discussionId);
             if (!discussion) {
                 sendJson(response, 404, { error: "Discussion introuvable." });
@@ -356,7 +390,7 @@ function handleApi(request, response, url) {
                 date: new Date().toISOString()
             };
             discussion.replies.push(reply);
-            writeStore(store);
+            await writeStore(store);
             sendJson(response, 201, reply);
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
@@ -364,7 +398,7 @@ function handleApi(request, response, url) {
 
     if (discussionMatch && request.method === "POST" && discussionMatch[2] === "block") {
         const discussionId = Number(discussionMatch[1]);
-        const store = readStore();
+        const store = await readStore();
         const discussion = store.discussions.find((item) => item.id === discussionId);
         if (!discussion) {
             sendJson(response, 404, { error: "Discussion introuvable." });
@@ -376,7 +410,7 @@ function handleApi(request, response, url) {
             store.blocks.push(discussion.name);
         }
         store.discussions = store.discussions.filter((item) => item.name !== discussion.name);
-        writeStore(store);
+        await writeStore(store);
         sendJson(response, 200, { ok: true });
         return true;
     }
@@ -388,7 +422,7 @@ function handleApi(request, response, url) {
                 return;
             }
 
-            const store = readStore();
+            const store = await readStore();
             const email = String(body.email).trim().toLowerCase();
             if (store.clients.some((client) => client.email === email)) {
                 sendJson(response, 409, { error: "Cette adresse e-mail est déjà utilisée." });
@@ -404,7 +438,7 @@ function handleApi(request, response, url) {
                 creeLe: new Date().toISOString()
             };
             store.clients.push(client);
-            writeStore(store);
+            await writeStore(store);
             let emailEnvoye = false;
             try {
                 emailEnvoye = await envoyerEmailConfirmation(client);
@@ -417,7 +451,7 @@ function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/login") {
-        readBody(request).then((body) => {
+        readBody(request).then(async (body) => {
             const email = String(body.email || "").trim().toLowerCase();
             const motDePasse = String(body.motDePasse || "");
 
@@ -426,7 +460,7 @@ function handleApi(request, response, url) {
                 return;
             }
 
-            const client = readStore().clients.find((item) => item.email === email);
+            const client = (await readStore()).clients.find((item) => item.email === email);
             if (!client || client.motDePasseHash !== hashPassword(motDePasse)) {
                 sendJson(response, 401, { error: "Adresse e-mail ou mot de passe incorrect." });
                 return;
@@ -443,13 +477,13 @@ function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/orders") {
-        readBody(request).then((body) => {
+        readBody(request).then(async (body) => {
             if (!body.nom || !body.email || !body.telephone || !body.paiement || !body.produit) {
                 sendJson(response, 400, { error: "Informations de commande incomplètes." });
                 return;
             }
 
-            const store = readStore();
+            const store = await readStore();
             const order = {
                 id: Date.now(),
                 produit: String(body.produit).slice(0, 150),
@@ -462,7 +496,7 @@ function handleApi(request, response, url) {
                 statut: "à confirmer"
             };
             store.orders.push(order);
-            writeStore(store);
+            await writeStore(store);
             sendJson(response, 201, { ok: true, orderId: order.id });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
@@ -491,8 +525,7 @@ function serveFile(request, response, url) {
     fs.createReadStream(filePath).pipe(response);
 }
 
-ensureStore();
-http.createServer((request, response) => {
+initialiserStockage().then(() => http.createServer((request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
     if (isRateLimited(request)) {
@@ -506,7 +539,12 @@ http.createServer((request, response) => {
     }
 
     if (url.pathname.startsWith("/api/")) {
-        handleApi(request, response, url);
+        handleApi(request, response, url).catch((error) => {
+            console.error("Erreur API:", error);
+            if (!response.headersSent) {
+                sendJson(response, 500, { error: "Erreur interne du serveur." });
+            }
+        });
         return;
     }
 
@@ -516,4 +554,7 @@ http.createServer((request, response) => {
     serveFile(request, response, url);
 }).listen(PORT, "0.0.0.0", () => {
     console.log(`Unique Art Studio disponible sur http://localhost:${PORT}`);
+})).catch((error) => {
+    console.error("Impossible d'initialiser le stockage:", error);
+    process.exitCode = 1;
 });

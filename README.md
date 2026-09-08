@@ -40,7 +40,7 @@ Le fichier `render.yaml` prépare le déploiement du site et de son serveur Node
 3. Renseigner `ADMIN_API_KEY` dans les variables secrètes Render.
 4. Déployer et tester `https://votre-service.onrender.com/api/health`.
 
-Pour conserver durablement les comptes, commandes, actualités et messages, connecter ensuite une base PostgreSQL. Le fichier `data/store.json` sert uniquement au développement et peut être perdu lors d’un redéploiement.
+Le Blueprint crée aussi une base PostgreSQL et transmet automatiquement sa chaîne de connexion avec `DATABASE_URL`. Les comptes, commandes, discussions, actualités et créations sont conservés après les redéploiements. En local, sans `DATABASE_URL`, le serveur utilise `data/store.json`.
 
 ## Préparation à une forte audience
 

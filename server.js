@@ -450,7 +450,7 @@ async function handleApi(request, response, url) {
         return true;
     }
 
-    if (request.method === "POST" && url.pathname === "/api/login") {
+    if (request.method === "POST" && ["/api/login", "/login"].includes(url.pathname)) {
         readBody(request).then(async (body) => {
             const email = String(body.email || "").trim().toLowerCase();
             const motDePasse = String(body.motDePasse || "");
@@ -527,6 +527,16 @@ function serveFile(request, response, url) {
 
 initialiserStockage().then(() => http.createServer((request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+
+    if (request.method === "OPTIONS") {
+        response.writeHead(204, {
+            "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key",
+            "Access-Control-Allow-Origin": "*"
+        });
+        response.end();
+        return;
+    }
 
     if (isRateLimited(request)) {
         response.writeHead(429, {

@@ -15,10 +15,19 @@ async function appelerApi(endpoint, options = {}) {
         ...options
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    let data = {};
+
+    if (responseText.trim()) {
+        try {
+            data = JSON.parse(responseText);
+        } catch (error) {
+            throw new Error(`Le serveur a renvoyé une réponse invalide (HTTP ${response.status}).`);
+        }
+    }
 
     if (!response.ok) {
-        throw new Error(data.error || "Le serveur a refusé la demande.");
+        throw new Error(data.error || `Le serveur a refusé la demande (HTTP ${response.status}).`);
     }
 
     return data;

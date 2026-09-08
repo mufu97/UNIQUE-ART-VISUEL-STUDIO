@@ -1155,6 +1155,47 @@ section {
     padding: 15px;
 }
 
+.secondary-button {
+    width: 100%;
+    background: transparent;
+    border: 1px solid #777;
+    color: #f1f1f1;
+    padding: 13px 16px;
+    cursor: pointer;
+}
+
+.secondary-button:hover {
+    border-color: #fff;
+    background: #1b1b1b;
+}
+
+.client-session {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 25px;
+    padding: 18px;
+    border-left: 3px solid #d3a35d;
+    background: #17130e;
+}
+
+.client-session[hidden] {
+    display: none;
+}
+
+.client-session-label {
+    margin: 0;
+    color: #d3a35d;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+}
+
+.client-session span {
+    color: #cfcfcf;
+    word-break: break-word;
+}
+
 /* DISCUSSION / RÉSEAU */
 
 .community-section {

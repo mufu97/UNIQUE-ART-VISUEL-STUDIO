@@ -119,6 +119,31 @@ function hashPassword(password) {
     return crypto.createHash("sha256").update(password).digest("hex");
 }
 
+async function envoyerEmailConfirmation(client) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+
+    if (!apiKey || !from) {
+        return false;
+    }
+
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            from,
+            to: [client.email],
+            subject: "Votre compte Unique Art Visuel Studio est confirmé",
+            html: `<p>Bonjour ${client.nom},</p><p>Votre compte client Unique Art Visuel Studio a bien été créé.</p><p>Vous pouvez maintenant vous connecter depuis votre espace client.</p><p>À bientôt,<br>Unique Art Visuel Studio</p>`
+        })
+    });
+
+    return response.ok;
+}
+
 function isAdminRequest(request) {
     const configuredKey = process.env.ADMIN_API_KEY || (IS_PRODUCTION ? "" : "UNIQUE17");
     const suppliedKey = request.headers["x-admin-key"] || "";
@@ -218,7 +243,7 @@ function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/actualites") {
-        readBody(request).then((body) => {
+        readBody(request).then(async (body) => {
             if (!body.title || !body.content || !body.type) {
                 sendJson(response, 400, { error: "Titre, type et contenu requis." });
                 return;
@@ -357,7 +382,7 @@ function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/clients") {
-        readBody(request).then((body) => {
+        readBody(request).then(async (body) => {
             if (!body.nom || !body.email || !body.motDePasse || !body.telephone) {
                 sendJson(response, 400, { error: "Tous les champs sont requis." });
                 return;
@@ -370,16 +395,23 @@ function handleApi(request, response, url) {
                 return;
             }
 
-            store.clients.push({
+            const client = {
                 id: Date.now(),
                 nom: String(body.nom).slice(0, 100),
                 email,
                 motDePasseHash: hashPassword(String(body.motDePasse)),
                 telephone: String(body.telephone).slice(0, 40),
                 creeLe: new Date().toISOString()
-            });
+            };
+            store.clients.push(client);
             writeStore(store);
-            sendJson(response, 201, { ok: true });
+            let emailEnvoye = false;
+            try {
+                emailEnvoye = await envoyerEmailConfirmation(client);
+            } catch (error) {
+                console.error("E-mail de confirmation non envoyé:", error.message);
+            }
+            sendJson(response, 201, { ok: true, emailEnvoye });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }

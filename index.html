@@ -350,6 +350,15 @@
                     <li>Garder vos projets et vos préférences</li>
                     <li>Bénéficier d’un accès privilégié aux modalités</li>
                 </ul>
+
+                <div id="clientSessionPanel" class="client-session" hidden>
+                    <p class="client-session-label">Votre espace client</p>
+                    <strong id="clientSessionName"></strong>
+                    <span id="clientSessionEmail"></span>
+                    <button type="button" class="secondary-button" onclick="deconnecterClient()">
+                        Se déconnecter
+                    </button>
+                </div>
             </div>
 
             <form id="accountForm" class="account-form">

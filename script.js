@@ -1479,6 +1479,8 @@ function initialiserCompteClient() {
         return;
     }
 
+    afficherSessionClient();
+
     form.addEventListener("submit", async function (event) {
         event.preventDefault();
 
@@ -1497,14 +1499,16 @@ function initialiserCompteClient() {
         }
 
         try {
-            await appelerApi("/clients", {
+            const resultat = await appelerApi("/clients", {
                 method: "POST",
                 body: JSON.stringify({ nom, email, motDePasse, telephone })
             });
             form.reset();
 
             if (status) {
-                status.textContent = "Compte créé avec succès. Vos informations sont enregistrées côté serveur.";
+                status.textContent = resultat.emailEnvoye
+                    ? "Compte créé. Un e-mail de confirmation vient d’être envoyé."
+                    : "Compte créé. L’e-mail n’a pas encore pu être envoyé par le serveur.";
                 status.className = "status-message success";
             }
         } catch (error) {
@@ -1524,6 +1528,33 @@ function initialiserCompteClient() {
             status.className = "status-message success";
         }
     });
+}
+
+function afficherSessionClient() {
+    const client = JSON.parse(localStorage.getItem("uniqueArtClient") || "null");
+    const panel = document.getElementById("clientSessionPanel");
+    const name = document.getElementById("clientSessionName");
+    const email = document.getElementById("clientSessionEmail");
+
+    if (!panel) {
+        return;
+    }
+
+    panel.hidden = !client;
+    if (client) {
+        name.textContent = client.nom;
+        email.textContent = client.email;
+    }
+}
+
+function deconnecterClient() {
+    localStorage.removeItem("uniqueArtClient");
+    afficherSessionClient();
+    const status = document.getElementById("accountStatus");
+    if (status) {
+        status.textContent = "Vous êtes déconnecté.";
+        status.className = "status-message success";
+    }
 }
 
 function ouvrirConnexionClient() {
@@ -1567,6 +1598,7 @@ function initialiserConnexionClient() {
             });
 
             localStorage.setItem("uniqueArtClient", JSON.stringify(client));
+            afficherSessionClient();
             status.textContent = `Connexion réussie. Bienvenue ${client.nom}.`;
             status.className = "status-message success";
             form.reset();

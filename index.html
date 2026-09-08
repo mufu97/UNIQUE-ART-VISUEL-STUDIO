@@ -364,6 +364,10 @@
                     Créer mon compte
                 </button>
 
+                <button type="button" class="secondary-button" onclick="ouvrirConnexionClient()">
+                    J’ai déjà un compte : me connecter
+                </button>
+
                 <p id="accountStatus" class="status-message" aria-live="polite"></p>
 
             </form>
@@ -888,6 +892,54 @@
 
         <p id="erreurConnexion" class="erreur">
         </p>
+
+    </div>
+
+</div>
+
+<!-- CONNEXION CLIENT -->
+
+<div id="connexionClient" class="modal">
+
+    <div class="modal-content admin-login">
+
+        <button class="close-button" onclick="fermerConnexionClient()">
+            ×
+        </button>
+
+        <p class="sur-titre">
+            UNIQUE ART VISUEL STUDIO
+        </p>
+
+        <h2>
+            Connexion client
+        </h2>
+
+        <p>
+            Retrouvez votre espace et vos échanges avec le studio.
+        </p>
+
+        <form id="clientLoginForm">
+            <input
+                type="email"
+                id="clientLoginEmail"
+                placeholder="Adresse e-mail"
+                required
+            >
+
+            <input
+                type="password"
+                id="clientLoginPassword"
+                placeholder="Mot de passe"
+                required
+            >
+
+            <button type="submit" class="publish-button">
+                Se connecter
+            </button>
+        </form>
+
+        <p id="clientLoginStatus" class="status-message" aria-live="polite"></p>
 
     </div>
 

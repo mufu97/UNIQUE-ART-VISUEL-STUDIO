@@ -384,6 +384,32 @@ function handleApi(request, response, url) {
         return true;
     }
 
+    if (request.method === "POST" && url.pathname === "/api/login") {
+        readBody(request).then((body) => {
+            const email = String(body.email || "").trim().toLowerCase();
+            const motDePasse = String(body.motDePasse || "");
+
+            if (!email || !motDePasse) {
+                sendJson(response, 400, { error: "Adresse e-mail et mot de passe requis." });
+                return;
+            }
+
+            const client = readStore().clients.find((item) => item.email === email);
+            if (!client || client.motDePasseHash !== hashPassword(motDePasse)) {
+                sendJson(response, 401, { error: "Adresse e-mail ou mot de passe incorrect." });
+                return;
+            }
+
+            sendJson(response, 200, {
+                id: client.id,
+                nom: client.nom,
+                email: client.email,
+                telephone: client.telephone
+            });
+        }).catch((error) => sendJson(response, 400, { error: error.message }));
+        return true;
+    }
+
     if (request.method === "POST" && url.pathname === "/api/orders") {
         readBody(request).then((body) => {
             if (!body.nom || !body.email || !body.telephone || !body.paiement || !body.produit) {

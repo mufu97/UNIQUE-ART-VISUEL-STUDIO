@@ -1526,6 +1526,59 @@ function initialiserCompteClient() {
     });
 }
 
+function ouvrirConnexionClient() {
+    const modal = document.getElementById("connexionClient");
+    if (modal) {
+        modal.style.display = "flex";
+    }
+    document.getElementById("clientLoginEmail")?.focus();
+}
+
+function fermerConnexionClient() {
+    const modal = document.getElementById("connexionClient");
+    const status = document.getElementById("clientLoginStatus");
+    if (modal) {
+        modal.style.display = "none";
+    }
+    if (status) {
+        status.textContent = "";
+        status.className = "status-message";
+    }
+}
+
+function initialiserConnexionClient() {
+    const form = document.getElementById("clientLoginForm");
+
+    if (!form) {
+        return;
+    }
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const email = document.getElementById("clientLoginEmail").value.trim();
+        const motDePasse = document.getElementById("clientLoginPassword").value;
+        const status = document.getElementById("clientLoginStatus");
+
+        try {
+            const client = await appelerApi("/login", {
+                method: "POST",
+                body: JSON.stringify({ email, motDePasse })
+            });
+
+            localStorage.setItem("uniqueArtClient", JSON.stringify(client));
+            status.textContent = `Connexion réussie. Bienvenue ${client.nom}.`;
+            status.className = "status-message success";
+            form.reset();
+        } catch (error) {
+            status.textContent = error.message === "MODE_LOCAL"
+                ? "Lancez le serveur avec npm start pour vous connecter."
+                : error.message;
+            status.className = "status-message error";
+        }
+    });
+}
+
 function initialiserAccesAdminCache() {
     const trigger = document.getElementById("secretAdminTrigger");
 
@@ -1679,6 +1732,7 @@ document.addEventListener("DOMContentLoaded", function () {
     initialiserFormulaireContact();
     initialiserCommande();
     initialiserCompteClient();
+    initialiserConnexionClient();
     initialiserDiscussion();
     initialiserActualites();
     initialiserModales();

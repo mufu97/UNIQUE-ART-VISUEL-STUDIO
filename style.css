@@ -1262,6 +1262,40 @@ section {
     line-height: 1.6;
 }
 
+.admin-inbox-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.admin-inbox-reply {
+    display: flex;
+    flex: 1 1 320px;
+    gap: 8px;
+}
+
+.admin-inbox-reply input {
+    min-width: 0;
+    flex: 1;
+    background: #0b0b0b;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 10px;
+}
+
+.admin-inbox-actions button {
+    border: 1px solid #555;
+    background: #222;
+    color: #fff;
+    padding: 10px 12px;
+    cursor: pointer;
+}
+
+.admin-inbox-actions button:hover {
+    border-color: #d3a35d;
+}
+
 /* DISCUSSION / RÉSEAU */
 
 .community-section {

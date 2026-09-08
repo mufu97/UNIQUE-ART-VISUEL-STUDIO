@@ -28,7 +28,7 @@ async function appelerApi(endpoint, options = {}) {
     }
 
     if (!response.ok) {
-        throw new Error(data.error || `Le serveur a refusé la demande (HTTP ${response.status}).`);
+        throw new Error(data.error || `Le serveur a refusé ${options.method || "GET"} ${endpoint} (HTTP ${response.status}).`);
     }
 
     return data;
@@ -619,10 +619,62 @@ async function actualiserBoiteReception() {
 
             heading.append(sender, type, date);
             item.append(heading, message);
+
+            const actions = document.createElement("div");
+            actions.className = "admin-inbox-actions";
+
+            const replyForm = document.createElement("form");
+            replyForm.className = "admin-inbox-reply";
+            replyForm.innerHTML = '<input type="text" placeholder="Répondre au client..." required><button type="submit">Répondre</button>';
+            replyForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const input = replyForm.querySelector("input");
+                const reply = input.value.trim();
+
+                if (!reply) {
+                    return;
+                }
+
+                try {
+                    await appelerApi(`/discussions/${discussion.id}/reply`, {
+                        method: "POST",
+                        ...optionsAdmin(),
+                        body: JSON.stringify({ message: reply })
+                    });
+                    await actualiserBoiteReception();
+                } catch (error) {
+                    window.alert(error.message);
+                }
+            });
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.textContent = "Supprimer";
+            deleteButton.addEventListener("click", async () => {
+                if (!window.confirm("Supprimer définitivement ce message ?")) {
+                    return;
+                }
+                await modererDiscussion(discussion.id, "delete");
+                await actualiserBoiteReception();
+            });
+
+            const blockButton = document.createElement("button");
+            blockButton.type = "button";
+            blockButton.textContent = "Bloquer l’utilisateur";
+            blockButton.addEventListener("click", async () => {
+                if (!window.confirm(`Bloquer les messages de ${discussion.name} ?`)) {
+                    return;
+                }
+                await modererDiscussion(discussion.id, "block");
+                await actualiserBoiteReception();
+            });
+
+            actions.append(replyForm, deleteButton, blockButton);
+            item.appendChild(actions);
             list.appendChild(item);
         });
     } catch (error) {
-        list.innerHTML = '<p class="discussion-empty">Impossible de charger les messages.</p>';
+        list.innerHTML = `<p class="discussion-empty">Impossible de charger les messages : ${error.message}</p>`;
     }
 }
 

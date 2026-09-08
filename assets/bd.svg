@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+<title id="title">Planche de bande dessinee</title>
+<desc id="desc">Trois cases colorees representant une scene narrative.</desc>
+<rect width="800" height="520" fill="#fff8ed"/>
+<rect x="28" y="28" width="235" height="464" rx="14" fill="#e86f5b"/>
+<rect x="282" y="28" width="235" height="220" rx="14" fill="#2d9891"/>
+<rect x="282" y="272" width="235" height="220" rx="14" fill="#f1bd58"/>
+<rect x="536" y="28" width="236" height="464" rx="14" fill="#a58ed2"/>
+<circle cx="145" cy="205" r="62" fill="#fff8ed"/>
+<path d="M90 360 Q145 300 200 360" fill="none" stroke="#20213d" stroke-width="16" stroke-linecap="round"/>
+<circle cx="120" cy="190" r="10" fill="#20213d"/><circle cx="170" cy="190" r="10" fill="#20213d"/>
+<path d="M350 130 Q400 75 455 130" fill="none" stroke="#fff8ed" stroke-width="16" stroke-linecap="round"/>
+<circle cx="385" cy="115" r="9" fill="#fff8ed"/><circle cx="430" cy="115" r="9" fill="#fff8ed"/>
+<path d="M335 380 L385 330 L435 380" fill="none" stroke="#20213d" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M590 160 Q655 95 720 160" fill="none" stroke="#fff8ed" stroke-width="15" stroke-linecap="round"/>
+<path d="M600 355 Q655 290 715 355" fill="none" stroke="#20213d" stroke-width="15" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+<title id="title">Couverture de livre artistique</title>
+<desc id="desc">Composition editoriale avec formes geometriques et titre abstrait.</desc>
+<rect width="800" height="520" fill="#20213d"/>
+<path d="M0 410 L800 95 V520 H0Z" fill="#e86f5b"/>
+<path d="M0 0 H280 L800 330 V0Z" fill="#2d9891"/>
+<circle cx="580" cy="160" r="92" fill="#f1bd58"/>
+<path d="M125 105 H470 M125 140 H390 M125 175 H320" stroke="#fff8ed" stroke-width="15" stroke-linecap="round"/>
+<path d="M150 330 Q250 230 350 330 T550 330" fill="none" stroke="#fff8ed" stroke-width="18" stroke-linecap="round"/>
+<text x="125" y="255" fill="#fff8ed" font-family="Georgia, serif" font-size="48" font-weight="bold">UNIVERS</text>
+</svg>

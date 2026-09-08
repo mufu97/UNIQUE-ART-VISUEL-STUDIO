@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+<title id="title">Illustration artistique abstraite</title>
+<desc id="desc">Composition coloree avec soleil, formes organiques et pinceau.</desc>
+<rect width="800" height="520" fill="#f6c567"/>
+<circle cx="610" cy="125" r="86" fill="#e76f51"/>
+<path d="M0 390 C150 260 250 500 390 350 S650 270 800 390 V520 H0Z" fill="#2d9891"/>
+<path d="M0 440 C160 340 270 500 430 395 S650 350 800 430 V520 H0Z" fill="#20213d"/>
+<path d="M140 360 C180 210 275 180 355 275 C405 335 470 320 505 230" fill="none" stroke="#fff8ed" stroke-width="20" stroke-linecap="round"/>
+<circle cx="225" cy="175" r="16" fill="#20213d"/>
+<circle cx="285" cy="150" r="10" fill="#20213d"/>
+<path d="M105 115 L155 65 M75 190 L135 190 M190 80 L215 30" stroke="#fff8ed" stroke-width="12" stroke-linecap="round"/>
+</svg>

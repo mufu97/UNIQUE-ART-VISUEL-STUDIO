@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>UNIQUE ART VISUEL STUDIO</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="creativeBackground" class="creative-background" aria-hidden="true">
+        <div class="creative-scene creative-scene-sketch">
+            <div class="scene-desk"></div>
+            <div class="scene-lamp"></div>
+            <div class="scene-paper scene-paper-one">✦</div>
+            <div class="scene-pencil"></div>
+            <span>Le matin : une idée devient un croquis.</span>
+        </div>
+        <div class="creative-scene creative-scene-comic">
+            <div class="scene-comic-page">
+                <i></i><i></i><i></i>
+            </div>
+            <div class="scene-ink"></div>
+            <span>La planche prend vie, case après case.</span>
+        </div>
+        <div class="creative-scene creative-scene-script">
+            <div class="scene-script-page">
+                <b>SCÈNE 04</b>
+                <i></i><i></i><i></i><i></i>
+            </div>
+            <div class="scene-quill">✎</div>
+            <span>Le scénariste cherche la bonne réplique.</span>
+        </div>
+        <div class="creative-scene creative-scene-book">
+            <div class="scene-book">
+                <b>UNIVERS</b>
+                <i></i><i></i>
+            </div>
+            <div class="scene-star">✦</div>
+            <span>Le soir : les mots deviennent un monde.</span>
+        </div>
+    </div>
+
+    <!-- NAVIGATION -->
+
+    <header class="navbar">
+
+        <div class="logo">
+            UNIQUE <span>17</span>
+        </div>
+
+        <nav>
+    <a href="#accueil" data-section="accueil">Accueil</a>
+    <a href="#boutique" data-section="boutique">Boutique</a>
+    <a href="#tarifs" data-section="tarifs">Tarifs</a>
+    <a href="#compte" data-section="compte">Compte</a>
+    <a href="#actualites" data-section="actualites">Actualités</a>
+    <a href="#creations" data-section="creations">Créations</a>
+    <a href="#oeuvres" data-section="oeuvres">Œuvres</a>
+    <a href="#apropos" data-section="apropos">À propos</a>
+    <a href="#contact" data-section="contact">Contact</a>
+</nav>
+
+        <button id="secretAdminTrigger" class="admin-symbol" type="button" aria-label="Ouvrir l’espace studio" title="Espace studio">
+            ✦17
+        </button>
+
+        <button class="menu-button" onclick="ouvrirMenu()">
+            ☰
+        </button>
+
+    </header>
+
+    <div id="assistantWidget" class="assistant-widget" aria-live="polite">
+        <button id="assistantToggle" class="assistant-toggle" type="button" aria-label="Assistant virtuel">
+            <span aria-hidden="true">✦</span>
+        </button>
+
+        <div id="assistantPanel" class="assistant-panel">
+            <div class="assistant-header">
+                <div>
+                    <strong>Assistant Unique Art</strong>
+                    <small>Disponible en l'absence du studio</small>
+                </div>
+                <button id="assistantClose" class="assistant-close" type="button" aria-label="Fermer l'assistant">×</button>
+            </div>
+
+            <div id="assistantMessages" class="assistant-messages">
+                <div class="assistant-message assistant-bot">
+                    Bonjour ! Je peux vous aider pour les commandes, les tarifs, les paiements et la prise de contact.
+                </div>
+            </div>
+
+            <div class="assistant-quick-actions">
+                <button type="button" class="assistant-chip" data-question="Quel est le prix d'une illustration ?">Prix</button>
+                <button type="button" class="assistant-chip" data-question="Comment payer ?">Paiement</button>
+                <button type="button" class="assistant-chip" data-question="Je veux un devis pour un projet personnalisé">Devis</button>
+            </div>
+
+            <form id="assistantForm" class="assistant-form">
+                <input id="assistantInput" type="text" placeholder="Posez votre question..." aria-label="Question de l'assistant">
+                <button type="submit">Envoyer</button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ACCUEIL -->
+
+    <section id="accueil" class="hero">
+
+        <div class="hero-content">
+
+            <p class="sur-titre">
+                UNIQUE ART VISUEL STUDIO
+            </p>
+
+            <h1>
+                L'art qui donne
+                <span>vie aux idées.</span>
+            </h1>
+
+            <p class="description">
+                Studio créatif spécialisé dans l'illustration,
+                la bande dessinée, la direction artistique
+                et la création visuelle.
+            </p>
+
+            <div class="hero-buttons">
+
+                <a href="#creations" class="button principal">
+                    Découvrir nos créations
+                </a>
+
+                <a href="#contact" class="button secondaire">
+                    Nous contacter
+                </a>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="payment-section">
+
+        <div class="section-title">
+            <p>PAIEMENTS SÉCURISÉS</p>
+            <h2>
+                Moyens de paiement
+            </h2>
+        </div>
+
+        <div class="payment-grid">
+
+            <div class="payment-card">
+                <div class="payment-icon">📱</div>
+                <h3>Mobile Money</h3>
+                <p>Paiement rapide et sécurisé via votre compte mobile money.</p>
+            </div>
+
+            <div class="payment-card">
+                <div class="payment-icon">💳</div>
+                <h3>Carte bancaire</h3>
+                <p>Paiement par carte bancaire pour une commande simple et rapide.</p>
+            </div>
+
+            <div class="payment-card">
+                <div class="payment-icon">🏦</div>
+                <h3>Virement bancaire</h3>
+                <p>Option pratique pour les commandes de grande valeur ou les achats personnalisés.</p>
+            </div>
+
+            <div class="payment-card">
+                <div class="payment-icon">🔒</div>
+                <h3>Paiement sécurisé</h3>
+                <p>Transaction fiable avec confirmation claire avant validation de commande.</p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <section id="boutique" class="shop-section">
+
+        <div class="section-title">
+            <p>BOUTIQUE EN LIGNE</p>
+            <h2>
+                Commandez nos œuvres et créations
+            </h2>
+        </div>
+
+        <div id="shopGrid" class="shop-grid"></div>
+
+    </section>
+
+    <section id="tarifs" class="pricing-section">
+
+        <div class="section-title">
+            <p>UNIQUE ART VISUEL STUDIO</p>
+            <h2>
+                Fiche tarifaire 2026
+            </h2>
+        </div>
+
+        <div class="pricing-intro">
+            <p>
+                Ando Dieudonné-Jean N'dé <br>
+                Auteur • Scénariste • Illustrateur • Dessinateur BD
+            </p>
+        </div>
+
+        <div class="pricing-grid">
+
+            <div class="pricing-card">
+                <h3>ILLUSTRATION</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prestation</th>
+                            <th>Tarif (FCFA)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Illustration simple Noir &amp; Blanc</td><td>15 000 à 30 000</td></tr>
+                        <tr><td>Illustration couleur simple</td><td>25 000 à 50 000</td></tr>
+                        <tr><td>Illustration détaillée couleur</td><td>50 000 à 150 000</td></tr>
+                        <tr><td>Illustration de couverture de livre</td><td>75 000 à 250 000</td></tr>
+                        <tr><td>Illustration publicitaire</td><td>50 000 à 150 000</td></tr>
+                        <tr><td>Character design (personnage)</td><td>30 000 à 100 000</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pricing-card">
+                <h3>BANDE DESSINÉE</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prestation</th>
+                            <th>Tarif (FCFA)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Planche BD Noir &amp; Blanc</td><td>50 000 à 100 000</td></tr>
+                        <tr><td>Planche BD couleur</td><td>75 000 à 200 000</td></tr>
+                        <tr><td>Bande dessinée complète (5 pages)</td><td>À partir de 400 000</td></tr>
+                        <tr><td>Bande dessinée complète (10 pages)</td><td>À partir de 750 000</td></tr>
+                        <tr><td>Album BD (24 à 48 pages)</td><td>Sur devis</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pricing-card">
+                <h3>SCÉNARISATION</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prestation</th>
+                            <th>Tarif (FCFA)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Synopsis (1 à 3 pages)</td><td>25 000 à 75 000</td></tr>
+                        <tr><td>Scénario BD par page</td><td>10 000 à 25 000</td></tr>
+                        <tr><td>Scénario complet BD courte</td><td>100 000 à 300 000</td></tr>
+                        <tr><td>Livre jeunesse illustré</td><td>À partir de 300 000</td></tr>
+                        <tr><td>Storytelling institutionnel</td><td>À partir de 150 000</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pricing-card">
+                <h3>COMMUNICATION VISUELLE</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prestation</th>
+                            <th>Tarif (FCFA)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Affiche publicitaire</td><td>25 000 à 75 000</td></tr>
+                        <tr><td>Flyer</td><td>20 000 à 50 000</td></tr>
+                        <tr><td>Visuel réseaux sociaux</td><td>10 000 à 30 000</td></tr>
+                        <tr><td>Série de 5 visuels</td><td>À partir de 50 000</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pricing-card full-width">
+                <h3>PRESTATIONS SPÉCIALES</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prestation</th>
+                            <th>Tarif (FCFA)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Direction artistique de projet</td><td>À partir de 100 000</td></tr>
+                        <tr><td>Formation initiation BD</td><td>À partir de 150 000</td></tr>
+                        <tr><td>Atelier scolaire BD (demi-journée)</td><td>À partir de 200 000</td></tr>
+                        <tr><td>Conférence / intervention artistique</td><td>À partir de 100 000</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pricing-card full-width conditions-card">
+                <h3>CONDITIONS</h3>
+                <ul>
+                    <li>50 % d'acompte avant le début des travaux.</li>
+                    <li>Solde payable à la livraison.</li>
+                    <li>Deux séries de corrections incluses.</li>
+                    <li>Toute modification majeure après validation fait l'objet d'une facturation supplémentaire.</li>
+                    <li>Les droits d'exploitation commerciale peuvent faire l'objet d'une licence spécifique selon le projet.</li>
+                </ul>
+            </div>
+
+            <div class="pricing-card full-width contact-card">
+                <h3>CONTACT</h3>
+                <p>Unique Art Visuel Studio</p>
+                <p>📞 +225 0701675941 / 07 59 87 55 31</p>
+                <p>✉️ dieudonnejeannde@gmail.com</p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <section id="compte" class="account-section">
+
+        <div class="section-title">
+            <p>CLIENTS & COMPTE</p>
+            <h2>
+                Créez votre compte client
+            </h2>
+        </div>
+
+        <div class="account-layout">
+
+            <div class="account-card">
+                <h3>Pourquoi ouvrir un compte ?</h3>
+                <ul>
+                    <li>Suivre vos demandes de devis</li>
+                    <li>Discuter directement avec le studio</li>
+                    <li>Garder vos projets et vos préférences</li>
+                    <li>Bénéficier d’un accès privilégié aux modalités</li>
+                </ul>
+            </div>
+
+            <form id="accountForm" class="account-form">
+
+                <input id="accountNom" type="text" placeholder="Nom complet" required>
+                <input id="accountEmail" type="email" placeholder="Adresse e-mail" required>
+                <input id="accountPassword" type="password" placeholder="Mot de passe" required>
+                
+                <input id="accountTelephone" type="tel" placeholder="Téléphone" required>
+
+                <button type="submit" class="publish-button">
+                    Créer mon compte
+                </button>
+
+                <p id="accountStatus" class="status-message" aria-live="polite"></p>
+
+            </form>
+
+        </div>
+
+    </section>
+
+    <section id="actualites" class="news-section">
+
+        <div class="section-title">
+            <p>LA VIE DU STUDIO</p>
+            <h2>Fil d’actualité</h2>
+            <p class="news-intro">Suivez les nouveaux projets, les coulisses et les informations réservées à notre communauté active.</p>
+        </div>
+
+        <div id="newsFeed" class="news-feed" aria-live="polite"></div>
+
+    </section>
+
+    <section class="community-section">
+
+        <div class="section-title">
+            <p>DISCUSSION & MODALITÉS</p>
+            <h2>
+                Espace client & échanges
+            </h2>
+            <p class="community-note">Le studio répond aux demandes publiées dans cet espace.</p>
+        </div>
+
+        <div class="community-layout">
+
+            <div class="community-board">
+                <div id="discussionList" class="discussion-list"></div>
+            </div>
+
+            <form id="discussionForm" class="discussion-form">
+
+                <div class="translation-tools">
+                    <label for="discussionLanguage">Langue de lecture</label>
+                    <select id="discussionLanguage">
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="pt">Português</option>
+                        <option value="de">Deutsch</option>
+                        <option value="ar">العربية</option>
+                    </select>
+                    <small>Utilisez “Traduire” sous un message pour le lire dans cette langue.</small>
+                </div>
+
+                <input id="discussionNom" type="text" placeholder="Votre nom ou pseudo" required>
+
+                <select id="discussionType" required>
+                    <option value="">Type de demande</option>
+                    <option value="Demande de devis">Demande de devis</option>
+                    <option value="Question sur les modalités">Question sur les modalités</option>
+                    <option value="Projet personnalisé">Projet personnalisé</option>
+                    <option value="Autre">Autre</option>
+                </select>
+
+                <textarea id="discussionMessage" placeholder="Décrivez votre besoin, votre projet ou vos questions sur les services..." required></textarea>
+
+                <button type="submit" class="publish-button">
+                    Publier ma demande
+                </button>
+
+                <p id="discussionStatus" class="status-message" aria-live="polite"></p>
+
+            </form>
+
+        </div>
+
+    </section>
+
+<button class="add-button" onclick="ouvrirFenetre()">
+    ＋ Ajouter une création
+</button>
+
+    <!-- SERVICES -->
+
+    <section class="services">
+
+        <div class="section-title">
+
+            <p>NOTRE SAVOIR-FAIRE</p>
+
+            <h2>
+                Nous créons des univers.
+            </h2>
+
+        </div>
+
+        <div class="services-grid">
+
+            <div class="service-card">
+                <div class="icon">🎨</div>
+                <h3>Illustration</h3>
+                <p>
+                    Création d'illustrations originales
+                    pour vos projets.
+                </p>
+            </div>
+
+            <div class="service-card">
+                <div class="icon">📖</div>
+                <h3>Bande dessinée</h3>
+                <p>
+                    Conception de personnages,
+                    storyboard et réalisation BD.
+                </p>
+            </div>
+
+            <div class="service-card">
+                <div class="icon">💡</div>
+                <h3>Direction artistique</h3>
+                <p>
+                    Développement d'identités visuelles
+                    et d'univers graphiques.
+                </p>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- CREATIONS -->
+
+    <section id="creations" class="creations">
+
+        <div class="section-title">
+
+            <p>PORTFOLIO</p>
+
+            <h2>
+                Nos créations
+            </h2>
+
+        </div>
+
+        <div class="gallery">
+
+            <div class="gallery-card">
+                <div class="placeholder">
+                    ILLUSTRATION
+                </div>
+                <h3>Illustration artistique</h3>
+            </div>
+
+            <div class="gallery-card">
+                <div class="placeholder">
+                    BANDE DESSINÉE
+                </div>
+                <h3>Création BD</h3>
+            </div>
+
+            <div class="gallery-card">
+                <div class="placeholder">
+                    CHARACTER DESIGN
+                </div>
+                <h3>Character Design</h3>
+            </div>
+
+            <div class="gallery-card">
+                <div class="placeholder">
+                    WEBTOON
+                </div>
+                <h3>Projet Webtoon</h3>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- OEUVRES -->
+
+    <section id="oeuvres" class="oeuvres">
+
+        <div class="section-title">
+
+            <p>NOTRE UNIVERS</p>
+
+            <h2>
+                Nos œuvres
+            </h2>
+
+        </div>
+
+        <div class="oeuvres-container">
+
+            <div class="oeuvre">
+
+                <div class="oeuvre-cover">
+                    LE SINGULARISME
+                </div>
+
+                <div>
+                    <h3>Le Singularisme</h3>
+
+                    <p>
+                        Une œuvre philosophique et artistique
+                        explorant la pensée, l'individu
+                        et la société.
+                    </p>
+
+                    <button>
+                        Découvrir
+                    </button>
+                </div>
+
+            </div>
+
+
+            <div class="oeuvre">
+
+                <div class="oeuvre-cover">
+                    LE POUVOIR
+                    DES MOTS
+                </div>
+
+                <div>
+                    <h3>Le Pouvoir des Mots</h3>
+
+                    <p>
+                        Une série BD qui explore la puissance
+                        du langage et de la pensée.
+                    </p>
+
+                    <button>
+                        Découvrir
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- A PROPOS -->
+
+    <section id="apropos" class="about">
+
+        <div>
+
+            <p class="sur-titre">
+                QUI SOMMES-NOUS ?
+            </p>
+
+            <h2>
+                UNIQUE ART VISUEL STUDIO
+            </h2>
+
+            <p>
+                Un studio de création visuelle dédié à
+                l'imagination, à la narration et à
+                l'expression artistique.
+            </p>
+
+            <p>
+                Notre objectif est simple :
+                transformer les idées en images,
+                les histoires en univers et les projets
+                en expériences visuelles.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- CONTACT -->
+
+    <section id="contact" class="contact">
+
+        <div class="section-title">
+
+            <p>PARLONS DE VOTRE PROJET</p>
+
+            <h2>
+                Créons quelque chose d'unique.
+            </h2>
+
+            <p class="contact-intro">
+                Vous avez un projet d'illustration, de bande dessinée,
+                de character design ou de direction artistique ?
+                Contactez UNIQUE ART VISUEL STUDIO.
+            </p>
+
+        </div>
+
+        <div class="contact-container">
+
+            <div class="contact-info">
+
+                <h3>Nos coordonnées</h3>
+
+                <div class="contact-item">
+                    <span>✉️</span>
+
+                    <div>
+                        <strong>Email</strong>
+
+                        <a href="mailto:dieudonnejeannde@gmail.com">
+                            dieudonnejeannde@gmail.com
+                        </a>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <span>📞</span>
+
+                    <div>
+                        <strong>Téléphone</strong>
+
+                        <a href="tel:+2250759875531">
+                            +225 07 59 87 55 31
+                        </a>
+
+                        <a href="tel:+2250701675941">
+                            +225 07 01 67 59 41
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+            <form id="contactForm">
+
+                <input
+                    id="nomContact"
+                    type="text"
+                    placeholder="Votre nom"
+                    required
+                >
+
+                <input
+                    id="emailContact"
+                    type="email"
+                    placeholder="Votre adresse e-mail"
+                    required
+                >
+
+                <textarea
+                    id="messageContact"
+                    placeholder="Parlez-nous de votre projet..."
+                    required
+                ></textarea>
+
+                <button type="submit">
+                    Envoyer le message
+                </button>
+
+                <p id="statusContact" class="status-message" aria-live="polite"></p>
+
+            </form>
+
+        </div>
+
+    </section>
+
+<!-- FENÊTRE AJOUTER UNE CRÉATION -->
+
+<div id="fenetreAjout" class="modal">
+
+    <div class="modal-content">
+
+        <button class="close-button" onclick="fermerFenetre()">
+            ×
+        </button>
+
+        <h2>Ajouter une création</h2>
+
+        <p>Ajoute une nouvelle œuvre à ton portfolio.</p>
+
+        <!-- ZONE IMAGE -->
+
+        <label for="imageInput" class="upload-area">
+
+            <span id="uploadText">
+                📷<br>
+                Cliquer pour choisir une image
+            </span>
+
+            <img id="imagePreview" src="" alt="Aperçu">
+
+        </label>
+
+        <input
+            type="file"
+            id="imageInput"
+            accept="image/*"
+            onchange="previsualiserImage(event)"
+        >
+
+        <div class="media-choice-box">
+            <label for="typeMedia" class="media-choice-label">
+                Type de média à publier
+            </label>
+            <select id="typeMedia" onchange="gererTypeMedia()">
+                <option value="image">Image seule</option>
+                <option value="pdf">PDF seul</option>
+                <option value="imageEtPdf">Image + PDF visible par les clients</option>
+                <option value="video">Vidéo seule</option>
+            </select>
+        </div>
+
+        <div class="video-upload-box">
+            <label for="videoInput" class="pdf-upload-label">
+                Vidéo visible par les clients
+            </label>
+            <input
+                type="file"
+                id="videoInput"
+                accept="video/*"
+                onchange="afficherNomVideo(event)"
+            >
+            <span id="videoFileName" class="pdf-file-name">Aucune vidéo sélectionnée</span>
+        </div>
+
+        <div class="pdf-upload-box">
+            <label for="pdfInput" class="pdf-upload-label">
+                Fichier PDF visible par les clients
+            </label>
+            <input
+                type="file"
+                id="pdfInput"
+                accept="application/pdf"
+                onchange="afficherNomPdf(event)"
+            >
+            <span id="pdfFileName" class="pdf-file-name">Aucun fichier PDF sélectionné</span>
+        </div>
+
+        <!-- TITRE -->
+
+        <input
+            type="text"
+            id="titreCreation"
+            placeholder="Titre de la création"
+        >
+
+        <!-- CATÉGORIE -->
+
+        <select id="categorieCreation">
+
+            <option value="Illustration">
+                Illustration
+            </option>
+
+            <option value="BD">
+                Bande dessinée
+            </option>
+
+            <option value="Webtoon">
+                Webtoon
+            </option>
+
+            <option value="Character Design">
+                Character Design
+            </option>
+
+            <option value="Livre">
+                Livre / Couverture
+            </option>
+
+        </select>
+
+        <!-- DESCRIPTION -->
+
+        <textarea
+            id="descriptionCreation"
+            placeholder="Description de la création..."
+        ></textarea>
+
+        <button
+            class="publish-button"
+            onclick="publierCreation()"
+        >
+            Publier la création
+        </button>
+
+    </div>
+
+</div>
+<!-- CONNEXION ADMINISTRATEUR -->
+
+<div id="connexionAdmin" class="modal">
+
+    <div class="modal-content admin-login">
+
+        <button class="close-button" onclick="fermerConnexion()">
+            ×
+        </button>
+
+        <p class="sur-titre">
+            UNIQUE ART VISUEL STUDIO
+        </p>
+
+        <h2>
+            Espace administrateur
+        </h2>
+
+        <p>
+            Connecte-toi pour gérer ton portfolio.
+        </p>
+
+        <input
+            type="password"
+            id="motDePasse"
+            placeholder="Mot de passe"
+        >
+
+        <button
+            class="publish-button"
+            onclick="connexionAdmin()"
+        >
+            Se connecter
+        </button>
+
+        <p id="erreurConnexion" class="erreur">
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- MODAL DE COMMANDE -->
+
+<div id="commandeModal" class="modal">
+
+    <div class="modal-content command-modal-content">
+
+        <button class="close-button" onclick="fermerCommande()">
+            ×
+        </button>
+
+        <h2>Passer commande</h2>
+
+        <p class="commande-intro">
+            Vous êtes sur le point de commander : <strong id="commandeProduitNom">Produit</strong>
+        </p>
+
+        <form id="commandeForm">
+
+            <input id="commandeNom" type="text" placeholder="Votre nom complet" required>
+            <input id="commandeEmail" type="email" placeholder="Votre adresse e-mail" required>
+            <input id="commandeTelephone" type="tel" placeholder="Votre téléphone" required>
+
+            <select id="commandePaiement" required>
+                <option value="">Choisissez un moyen de paiement</option>
+                <option value="Mobile Money">Mobile Money</option>
+                <option value="Carte bancaire">Carte bancaire</option>
+                <option value="Virement bancaire">Virement bancaire</option>
+            </select>
+
+            <textarea id="commandeMessage" placeholder="Informations supplémentaires ou détails de commande..."></textarea>
+
+            <button type="submit" class="publish-button">
+                Valider la commande
+            </button>
+
+            <p id="statusCommande" class="status-message" aria-live="polite"></p>
+
+            <div id="paymentCelebration" class="payment-celebration" aria-live="polite" hidden>
+                <div class="celebration-person" aria-hidden="true">
+                    <span class="person-hat">✦</span>
+                    <span class="person-head"></span>
+                    <span class="person-body"></span>
+                    <span class="person-arm person-arm-left"></span>
+                    <span class="person-arm person-arm-right"></span>
+                    <span class="person-leg person-leg-left"></span>
+                    <span class="person-leg person-leg-right"></span>
+                </div>
+                <strong>Paiement réussi !</strong>
+                <span>Merci pour votre commande, le studio s’occupe de la suite.</span>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- TABLEAU DE BORD ADMINISTRATEUR -->
+
+<section id="adminDashboard" class="admin-dashboard">
+
+    <div class="section-title">
+
+        <p>UNIQUE ART VISUEL STUDIO</p>
+
+        <h2>
+            Tableau de bord
+        </h2>
+
+        <p>
+            Gestion de tes créations et de ton portfolio.
+        </p>
+
+        <div class="admin-role-banner">
+            <span class="admin-role-mark">✦</span>
+            <div>
+                <strong>Poste de community manager</strong>
+                <p>Anime la communauté, réponds aux clients et donne une nouvelle impulsion au studio.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="admin-workspace-grid">
+        <button type="button" class="admin-workspace-card admin-workspace-news" onclick="document.getElementById('newsTitle').focus()">
+            <span>✺</span>
+            <strong>Faire vivre le fil</strong>
+            <small>Publier une actualité</small>
+        </button>
+        <button type="button" class="admin-workspace-card admin-workspace-community" onclick="document.querySelector('.community-section').scrollIntoView({ behavior: 'smooth' })">
+            <span>◌</span>
+            <strong>Animer les échanges</strong>
+            <small>Répondre et modérer</small>
+        </button>
+        <button type="button" class="admin-workspace-card admin-workspace-creations" onclick="ouvrirFenetre()">
+            <span>✎</span>
+            <strong>Nourrir la galerie</strong>
+            <small>Image, vidéo, PDF ou texte</small>
+        </button>
+    </div>
+
+
+    <div class="admin-actions">
+
+        <button
+            class="publish-button"
+            onclick="ouvrirFenetre()"
+        >
+            ＋ Ajouter une création
+        </button>
+
+        <button
+            class="logout-button"
+            onclick="deconnexionAdmin()"
+        >
+            Se déconnecter
+        </button>
+
+    </div>
+
+    <form id="newsForm" class="news-form">
+        <h3>Publier une actualité</h3>
+        <input id="newsTitle" type="text" placeholder="Titre de l’actualité" required>
+        <select id="newsType" required>
+            <option value="Coulisses">Coulisses</option>
+            <option value="Nouveau projet">Nouveau projet</option>
+            <option value="Annonce">Annonce</option>
+            <option value="Événement">Événement</option>
+        </select>
+        <textarea id="newsContent" placeholder="Décrivez l’activité du studio..." required></textarea>
+        <button type="submit" class="publish-button">Publier dans le fil</button>
+        <p id="newsStatus" class="status-message" aria-live="polite"></p>
+    </form>
+
+
+    <div class="admin-stats">
+
+        <div class="stat-card">
+
+            <span id="nombreCreations">
+                0
+            </span>
+
+            <p>
+                Créations
+            </p>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <span>
+                UNIQUE
+            </span>
+
+            <p>
+                Studio
+            </p>
+
+        </div>
+
+    </div>
+
+    <section class="accounting-panel" aria-labelledby="accountingTitle">
+        <div class="accounting-heading">
+            <div>
+                <p class="accounting-kicker">SUIVI EN DIRECT</p>
+                <h3 id="accountingTitle">Comptabilité du studio</h3>
+                <p>Les indicateurs se mettent à jour automatiquement toutes les 15 secondes.</p>
+            </div>
+            <span id="accountingLastUpdate" class="accounting-live-status">Connexion...</span>
+        </div>
+
+        <div class="accounting-metrics">
+            <article class="accounting-metric accounting-metric-primary">
+                <span id="accountingTotal">0 FCFA</span>
+                <p>Chiffre prévisionnel</p>
+            </article>
+            <article class="accounting-metric">
+                <span id="accountingConfirmed">0 FCFA</span>
+                <p>Commandes confirmées</p>
+            </article>
+            <article class="accounting-metric">
+                <span id="accountingPending">0</span>
+                <p>Commandes à confirmer</p>
+            </article>
+            <article class="accounting-metric">
+                <span id="accountingAverage">0 FCFA</span>
+                <p>Panier moyen</p>
+            </article>
+        </div>
+
+        <div class="accounting-lower-grid">
+            <div class="accounting-volumes">
+                <h4>Activité enregistrée</h4>
+                <div class="volume-list">
+                    <span>Clients <strong id="volumeClients">0</strong></span>
+                    <span>Discussions <strong id="volumeDiscussions">0</strong></span>
+                    <span>Créations <strong id="volumeCreations">0</strong></span>
+                    <span>Actualités <strong id="volumeNews">0</strong></span>
+                </div>
+            </div>
+            <div class="accounting-activity">
+                <h4>Dernières activités</h4>
+                <div id="accountingActivityList" class="activity-list" aria-live="polite">
+                    <p class="activity-empty">Chargement des activités...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</section>
+    <!-- FOOTER -->
+
+    <footer>
+
+        <div class="logo">
+            UNIQUE <span>17</span>
+        </div>
+
+        <p>
+            © 2026 UNIQUE ART VISUEL STUDIO
+        </p>
+
+        <p>
+            Créons. Imaginons. Résistons.
+        </p>
+
+    </footer>
+
+    <div id="sectionOverlay" class="section-overlay" aria-hidden="true">
+        <div class="overlay-header">
+            <button id="closeOverlay" class="close-overlay" type="button" aria-label="Retour">←</button>
+        </div>
+        <div id="overlayContent" class="overlay-content"></div>
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>

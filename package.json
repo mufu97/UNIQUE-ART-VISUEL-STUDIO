@@ -1,0 +1,14 @@
+{
+  "name": "unique-art-visuel-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Boutique et espace client de Unique Art Visuel Studio",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

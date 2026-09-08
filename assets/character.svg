@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+<title id="title">Character design colore</title>
+<desc id="desc">Portrait stylise d'un personnage original.</desc>
+<rect width="800" height="520" fill="#d9c8ed"/>
+<circle cx="400" cy="250" r="170" fill="#f1bd58"/>
+<path d="M245 205 Q265 62 400 72 Q535 62 555 205 Q500 165 400 190 Q300 165 245 205Z" fill="#20213d"/>
+<circle cx="337" cy="260" r="18" fill="#20213d"/><circle cx="463" cy="260" r="18" fill="#20213d"/>
+<path d="M345 345 Q400 380 455 345" fill="none" stroke="#e86f5b" stroke-width="18" stroke-linecap="round"/>
+<path d="M225 475 Q250 390 400 390 Q550 390 575 475" fill="#2d9891"/>
+<path d="M400 45 V10 M280 90 L245 55 M520 90 L555 55" stroke="#e86f5b" stroke-width="16" stroke-linecap="round"/>
+<circle cx="80" cy="100" r="24" fill="#e86f5b"/><circle cx="710" cy="420" r="30" fill="#2d9891"/>
+</svg>

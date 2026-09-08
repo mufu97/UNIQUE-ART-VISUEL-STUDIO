@@ -4,6 +4,7 @@ const NEWS_KEY = "uniqueArtActualites";
 const API_BASE = "/api";
 let commandeSelectionnee = { produit: "", prix: 0 };
 let accountingRefreshTimer = null;
+let discussionRefreshTimer = null;
 
 async function appelerApi(endpoint, options = {}) {
     if (window.location.protocol === "file:") {
@@ -1397,6 +1398,12 @@ function initialiserDiscussion() {
 
     renderDiscussions();
 
+    const client = JSON.parse(localStorage.getItem("uniqueArtClient") || "null");
+    if (client) {
+        document.getElementById("discussionNom").value = client.nom || "";
+        document.getElementById("discussionEmail").value = client.email || "";
+    }
+
     appelerApi("/discussions").then((discussions) => {
         saveDiscussions(discussions);
         renderDiscussions();
@@ -1404,10 +1411,23 @@ function initialiserDiscussion() {
         // Le mode local reste disponible lorsque la page est ouverte directement.
     });
 
+    if (!discussionRefreshTimer) {
+        discussionRefreshTimer = window.setInterval(async () => {
+            try {
+                const discussions = await appelerApi("/discussions");
+                saveDiscussions(discussions);
+                renderDiscussions();
+            } catch (error) {
+                // La dernière version affichée reste disponible pendant une panne réseau.
+            }
+        }, 15000);
+    }
+
     form.addEventListener("submit", async function (event) {
         event.preventDefault();
 
         const nom = document.getElementById("discussionNom").value.trim();
+        const email = document.getElementById("discussionEmail").value.trim().toLowerCase();
         const type = document.getElementById("discussionType").value;
         const message = document.getElementById("discussionMessage").value.trim();
         const status = document.getElementById("discussionStatus");
@@ -1418,7 +1438,7 @@ function initialiserDiscussion() {
             return;
         }
 
-        if (!nom || !type || !message) {
+        if (!nom || !email || !type || !message) {
             if (status) {
                 status.textContent = "Remplis tous les champs pour publier votre demande.";
                 status.className = "status-message error";
@@ -1429,7 +1449,7 @@ function initialiserDiscussion() {
         try {
             const discussion = await appelerApi("/discussions", {
                 method: "POST",
-                body: JSON.stringify({ name: nom, type, message })
+                body: JSON.stringify({ name: nom, email, type, message })
             });
             const discussions = getSavedDiscussions();
             discussions.push(discussion);
@@ -1446,6 +1466,7 @@ function initialiserDiscussion() {
             discussions.push({
                 id: Date.now(),
                 name: nom,
+                email,
                 type,
                 message,
                 date: new Date().toISOString(),

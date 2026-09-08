@@ -178,6 +178,31 @@ async function envoyerEmailConfirmation(client) {
     return response.ok;
 }
 
+async function envoyerEmailReponse(discussion, message) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+
+    if (!apiKey || !from || !discussion.email) {
+        return false;
+    }
+
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            from,
+            to: [discussion.email],
+            subject: "Le studio a répondu à votre message",
+            html: `<p>Bonjour ${discussion.name},</p><p>Le studio Unique Art Visuel Studio a répondu à votre demande :</p><blockquote>${message}</blockquote><p>Connectez-vous à votre espace client pour retrouver l’échange.</p>`
+        })
+    });
+
+    return response.ok;
+}
+
 function isAdminRequest(request) {
     const configuredKey = process.env.ADMIN_API_KEY || (IS_PRODUCTION ? "" : "UNIQUE17");
     const suppliedKey = request.headers["x-admin-key"] || "";
@@ -327,8 +352,8 @@ async function handleApi(request, response, url) {
 
     if (request.method === "POST" && url.pathname === "/api/discussions") {
         readBody(request).then(async (body) => {
-            if (!body.name || !body.type || !body.message) {
-                sendJson(response, 400, { error: "Nom, type et message requis." });
+            if (!body.name || !body.email || !body.type || !body.message) {
+                sendJson(response, 400, { error: "Nom, e-mail, type et message requis." });
                 return;
             }
 
@@ -341,6 +366,7 @@ async function handleApi(request, response, url) {
             const discussion = {
                 id: Date.now(),
                 name: String(body.name).slice(0, 100),
+                email: String(body.email).trim().toLowerCase().slice(0, 150),
                 type: String(body.type).slice(0, 100),
                 message: String(body.message).slice(0, 2000),
                 date: new Date().toISOString(),
@@ -391,7 +417,13 @@ async function handleApi(request, response, url) {
             };
             discussion.replies.push(reply);
             await writeStore(store);
-            sendJson(response, 201, reply);
+            let emailEnvoye = false;
+            try {
+                emailEnvoye = await envoyerEmailReponse(discussion, reply.message);
+            } catch (error) {
+                console.error("E-mail de réponse non envoyé:", error.message);
+            }
+            sendJson(response, 201, { ...reply, emailEnvoye });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }

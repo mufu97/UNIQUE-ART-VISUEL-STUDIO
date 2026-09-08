@@ -1056,6 +1056,21 @@
         </button>
     </div>
 
+    <section class="admin-inbox" aria-labelledby="adminInboxTitle">
+        <div class="admin-inbox-heading">
+            <div>
+                <p class="admin-kicker">MESSAGERIE</p>
+                <h3 id="adminInboxTitle">Boîte de réception</h3>
+            </div>
+            <button type="button" class="secondary-button inbox-refresh" onclick="actualiserBoiteReception()">
+                Actualiser les messages
+            </button>
+        </div>
+        <div id="adminInboxList" class="admin-inbox-list" aria-live="polite">
+            <p class="discussion-empty">Chargement des messages...</p>
+        </div>
+    </section>
+
 
     <div class="admin-actions">
 

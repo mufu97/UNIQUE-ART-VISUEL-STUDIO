@@ -566,12 +566,63 @@ function afficherDashboard(estConnecte) {
 
     if (estConnecte) {
         actualiserComptabilite();
+        actualiserBoiteReception();
         if (!accountingRefreshTimer) {
             accountingRefreshTimer = window.setInterval(actualiserComptabilite, 15000);
         }
     } else if (accountingRefreshTimer) {
         window.clearInterval(accountingRefreshTimer);
         accountingRefreshTimer = null;
+    }
+}
+
+async function actualiserBoiteReception() {
+    const list = document.getElementById("adminInboxList");
+
+    if (!list || localStorage.getItem(ADMIN_KEY) !== "true") {
+        return;
+    }
+
+    try {
+        const discussions = await appelerApi("/discussions");
+        list.innerHTML = "";
+
+        if (!discussions.length) {
+            list.innerHTML = '<p class="discussion-empty">Aucun message reçu pour le moment.</p>';
+            return;
+        }
+
+        discussions.slice().reverse().forEach((discussion) => {
+            const item = document.createElement("article");
+            item.className = "admin-inbox-item";
+
+            const heading = document.createElement("div");
+            heading.className = "admin-inbox-item-heading";
+
+            const sender = document.createElement("strong");
+            sender.textContent = discussion.name;
+
+            const date = document.createElement("time");
+            date.dateTime = discussion.date;
+            date.textContent = new Date(discussion.date).toLocaleString("fr-FR", {
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+
+            const type = document.createElement("span");
+            type.textContent = discussion.type;
+
+            const message = document.createElement("p");
+            message.textContent = discussion.message;
+
+            heading.append(sender, type, date);
+            item.append(heading, message);
+            list.appendChild(item);
+        });
+    } catch (error) {
+        list.innerHTML = '<p class="discussion-empty">Impossible de charger les messages.</p>';
     }
 }
 

@@ -1196,6 +1196,72 @@ section {
     word-break: break-word;
 }
 
+.admin-inbox {
+    margin: 30px 0;
+    padding: 25px;
+    background: #0d0d0d;
+    border: 1px solid #333;
+}
+
+.admin-inbox-heading,
+.admin-inbox-item-heading {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.admin-inbox-heading {
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.admin-inbox-heading h3 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.admin-kicker {
+    margin: 0 0 5px;
+    color: #d3a35d;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+}
+
+.inbox-refresh {
+    width: auto;
+}
+
+.admin-inbox-list {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-inbox-item {
+    padding: 17px;
+    background: #171717;
+    border-left: 3px solid #d3a35d;
+}
+
+.admin-inbox-item-heading {
+    flex-wrap: wrap;
+}
+
+.admin-inbox-item-heading span,
+.admin-inbox-item-heading time {
+    color: #aaa;
+    font-size: 0.85rem;
+}
+
+.admin-inbox-item-heading time {
+    margin-left: auto;
+}
+
+.admin-inbox-item p {
+    margin: 10px 0 0;
+    color: #ddd;
+    line-height: 1.6;
+}
+
 /* DISCUSSION / RÉSEAU */
 
 .community-section {

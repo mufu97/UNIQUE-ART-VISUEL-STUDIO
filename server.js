@@ -483,7 +483,11 @@ function serveFile(request, response, url) {
     }
 
     const extension = path.extname(filePath).toLowerCase();
-    response.writeHead(200, { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" });
+    const headers = { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" };
+    if ([".html", ".js", ".css"].includes(extension)) {
+        headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+    }
+    response.writeHead(200, headers);
     fs.createReadStream(filePath).pipe(response);
 }
 

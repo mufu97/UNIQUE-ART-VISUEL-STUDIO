@@ -10,9 +10,27 @@ services:
         value: production
       - key: ADMIN_API_KEY
         sync: false
+      - key: CLIENT_SESSION_SECRET
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_TO
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      - key: CINETPAY_API_KEY
+        sync: false
+      - key: CINETPAY_SITE_ID
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: AI_API_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
         sync: false
       - key: DATABASE_URL
         fromDatabase:

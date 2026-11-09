@@ -2,3 +2,23 @@ node_modules/
 data/store.json
 .env
 .DS_Store
+
+# Sources graphiques et captures (non utilisees par le site)
+assets/Images/
+assets/oeuvres/
+assets/1000108907*
+assets/ChatGPT Image*
+*.kra
+*.kra~
+*.clip
+*.png~
+desktop.ini
+
+# Brouillons et outils locaux
+import json*.txt
+vosk_test.py
+opencode.json
+qwen-opencode.Modelfile
+.vscode/
+.agents/
+skills-lock.json

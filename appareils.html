@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f4ef">
+    <meta name="description" content="Inventoriez vos appareils et testez un partage volontaire de position, sans localisation en arrière-plan.">
+    <title>Mes appareils — Retrouve</title>
+    <link rel="stylesheet" href="appareils.css?v=20261031-consented-invitations-v1">
+    <script src="appareils.js?v=20261031-consented-invitations-v1" defer></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/" aria-label="Retour au site Unique Art Visuel Studio">
+            <span class="brand-icon" aria-hidden="true">R</span>
+            <span>Retrouve<small>Mon espace appareils</small></span>
+        </a>
+        <a class="back-link" href="/">Retour au site <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main class="page-shell">
+        <section class="intro">
+            <div>
+                <p class="eyebrow">UN ESPRIT PLUS TRANQUILLE</p>
+                <h1>Préparez vos appareils,<br><span>gardez le contrôle.</span></h1>
+                <p class="intro-copy">Conservez leur inventaire et testez un partage volontaire de position entre vos appareils, sans passer par le service de localisation de Google.</p>
+            </div>
+            <aside class="privacy-card">
+                <span class="privacy-icon" aria-hidden="true">◎</span>
+                <div>
+                    <strong>Vos positions restent dans votre compte</strong>
+                    <p>Le propriétaire se connecte et crée une invitation. Le testeur n’a pas besoin de compte ; il autorise lui-même le partage depuis son navigateur.</p>
+                </div>
+            </aside>
+        </section>
+
+        <section id="accountPanel" class="account-panel" aria-labelledby="accountTitle">
+            <div class="account-copy">
+                <p class="eyebrow">ACCÈS DEPUIS UN AUTRE APPAREIL</p>
+                <h2 id="accountTitle">Gardez votre inventaire accessible</h2>
+                <p>Créez un compte ou connectez-vous pour gérer votre inventaire, inviter un testeur et consulter les positions qu’il accepte de partager.</p>
+            </div>
+            <div id="accountSignedOut">
+                <form id="accountLoginForm" class="account-form">
+                    <label for="accountLoginEmail">Adresse e-mail</label>
+                    <input id="accountLoginEmail" name="email" type="email" maxlength="150" autocomplete="email" required>
+                    <label for="accountLoginPassword">Mot de passe</label>
+                    <input id="accountLoginPassword" name="motDePasse" type="password" autocomplete="current-password" required>
+                    <button class="button button-primary" type="submit">Me connecter</button>
+                </form>
+                <details class="register-details">
+                    <summary>Mot de passe oublié ?</summary>
+                    <form id="accountRecoveryForm" class="account-form">
+                        <label for="accountRecoveryEmail">Adresse e-mail du compte</label>
+                        <input id="accountRecoveryEmail" name="email" type="email" maxlength="150" autocomplete="email" required>
+                        <button class="button button-quiet" type="submit">Recevoir un lien de réinitialisation</button>
+                    </form>
+                </details>
+                <details class="register-details">
+                    <summary>Créer un compte client</summary>
+                    <form id="accountRegisterForm" class="account-form">
+                        <label for="accountRegisterName">Votre nom</label>
+                        <input id="accountRegisterName" name="nom" type="text" maxlength="100" autocomplete="name" required>
+                        <label for="accountRegisterPhone">Téléphone</label>
+                        <input id="accountRegisterPhone" name="telephone" type="tel" maxlength="40" autocomplete="tel" required>
+                        <label for="accountRegisterEmail">Adresse e-mail</label>
+                        <input id="accountRegisterEmail" name="email" type="email" maxlength="150" autocomplete="email" required>
+                        <label for="accountRegisterPassword">Mot de passe (10 caractères minimum)</label>
+                        <input id="accountRegisterPassword" name="motDePasse" type="password" minlength="10" autocomplete="new-password" required>
+                        <button class="button button-primary" type="submit">Créer mon compte</button>
+                    </form>
+                </details>
+            </div>
+            <div id="passwordResetContainer" hidden>
+                <p class="account-identity"><strong>Choisir un nouveau mot de passe</strong></p>
+                <form id="passwordResetForm" class="account-form">
+                    <label for="passwordResetNew">Nouveau mot de passe (10 caractères minimum)</label>
+                    <input id="passwordResetNew" name="motDePasse" type="password" minlength="10" maxlength="128" autocomplete="new-password" required>
+                    <label for="passwordResetConfirm">Confirmer le nouveau mot de passe</label>
+                    <input id="passwordResetConfirm" name="confirmation" type="password" minlength="10" maxlength="128" autocomplete="new-password" required>
+                    <button class="button button-primary" type="submit">Enregistrer le nouveau mot de passe</button>
+                </form>
+            </div>
+            <div id="accountSignedIn" hidden>
+                <p class="account-identity">Connecté : <strong id="accountIdentity"></strong></p>
+                <p id="accountSyncInfo" class="account-sync-info">Votre inventaire est synchronisé avec votre compte.</p>
+                <div class="account-actions">
+                    <button class="button button-quiet" id="mergeLocalButton" type="button" hidden>Ajouter l’inventaire de ce navigateur</button>
+                    <button class="button button-quiet" id="accountLogoutButton" type="button">Se déconnecter</button>
+                </div>
+            </div>
+            <p id="accountStatus" class="account-status" role="status" aria-live="polite" hidden></p>
+            <button id="accountRetryButton" class="button button-quiet" type="button" hidden>Réessayer la connexion</button>
+        </section>
+
+        <section id="locationSharePanel" class="account-panel location-share-panel" aria-labelledby="locationShareTitle" hidden>
+            <div class="account-copy">
+                <p class="eyebrow">DÉMONSTRATION AVEC UN TESTEUR</p>
+                <h2 id="locationShareTitle">Inviter un téléphone à partager sa position</h2>
+                <p>Choisissez l’appareil à associer, puis partagez l’invitation. Le testeur n’a pas besoin de votre mot de passe : il ouvre le lien, lit les informations et autorise lui-même la géolocalisation.</p>
+            </div>
+            <form id="locationShareForm" class="account-form">
+                <label for="locationShareDevice">Appareil à associer dans votre inventaire</label>
+                <select id="locationShareDevice" name="deviceId" required></select>
+                <button id="locationShareCreateButton" class="button button-primary" type="submit">Créer une invitation valable 15 minutes</button>
+            </form>
+            <div id="locationShareInvite" class="location-share-invite" hidden>
+                <label for="locationShareInviteUrl">Lien privé à transmettre au testeur</label>
+                <input id="locationShareInviteUrl" type="url" readonly>
+                <button id="locationShareSendButton" class="button button-quiet" type="button">Partager ou copier le lien</button>
+                <p>Ce lien est à usage unique. Ne le publiez pas : toute personne qui le reçoit peut demander à partager sa position.</p>
+            </div>
+            <div class="location-share-feed">
+                <h3>Invitations et tests récents</h3>
+                <ul id="locationShareList" aria-live="polite"></ul>
+                <p id="locationShareEmpty" class="account-sync-info">Aucune invitation pour le moment.</p>
+            </div>
+            <p id="locationShareStatus" class="account-status" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <section id="shareGuestPanel" class="guest-share-panel" aria-labelledby="shareGuestTitle" hidden>
+            <p class="eyebrow">INVITATION DE PARTAGE DE POSITION</p>
+            <h2 id="shareGuestTitle">Vous choisissez si vous partagez</h2>
+            <p id="shareGuestDescription">La position de cet appareil sera partagée avec le propriétaire de l’invitation.</p>
+            <ul>
+                <li>Le navigateur demandera l’accès à votre position ; vous pouvez refuser.</li>
+                <li>La position sera partagée au plus toutes les 30 secondes tant que cette page est visible.</li>
+                <li>Le partage dure au maximum une heure. Vous ou le propriétaire pouvez l’arrêter.</li>
+                <li>Le propriétaire verra la dernière position enregistrée, même après l’arrêt du partage, jusqu’à ce qu’il l’efface.</li>
+            </ul>
+            <label class="share-consent">
+                <input id="shareGuestConsent" type="checkbox">
+                <span>Je comprends ces informations et j’accepte de partager la position de cet appareil pour ce test.</span>
+            </label>
+            <button id="shareGuestStart" class="button button-primary" type="button" disabled>Autoriser et commencer le partage</button>
+            <button id="shareGuestStop" class="button button-danger" type="button" hidden>Arrêter et terminer mon partage</button>
+            <p id="shareGuestStatus" class="status-message" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <section class="notice" aria-label="Limites du démonstrateur de localisation">
+            <span class="notice-icon" aria-hidden="true">i</span>
+            <p><strong>Démonstrateur Retrouve :</strong> le propriétaire connecté crée un lien à usage unique et l’envoie directement au testeur. Le testeur ouvre le lien, coche son consentement et autorise la géolocalisation du navigateur ; aucun mot de passe de compte ne lui est demandé. Les positions sont envoyées au compte du propriétaire au plus une fois toutes les 30 secondes, pendant une heure maximum et seulement tant que la page reste visible. Le testeur peut arrêter le partage et le propriétaire peut révoquer l’invitation. Retrouve ne les envoie pas à Google ; toutefois, le navigateur ou le système peut utiliser son propre fournisseur de géolocalisation. OpenStreetMap ne reçoit les coordonnées que si le propriétaire ouvre volontairement le lien cartographique. Ce prototype ne localise pas un appareil déjà égaré, éteint ou hors ligne ; il n’y a ni suivi en arrière-plan, ni micro, ni caméra.</p>
+        </section>
+
+        <div id="deviceSectionHeading" class="section-heading">
+            <div>
+                <p class="eyebrow">VOTRE INVENTAIRE</p>
+                <h2>Mes appareils</h2>
+            </div>
+            <div class="backup-actions">
+                <button class="button button-quiet" id="exportButton" type="button">Exporter la sauvegarde</button>
+                <button class="button button-quiet" id="importButton" type="button">Importer une sauvegarde</button>
+                <input id="importFile" type="file" accept="application/json,.json" hidden>
+            </div>
+        </div>
+
+        <p id="statusMessage" class="status-message" role="status" aria-live="polite" hidden></p>
+
+        <div id="deviceWorkspace" class="workspace">
+            <section id="deviceList" class="device-list" aria-label="Liste de vos appareils"></section>
+
+            <aside class="form-panel">
+                <p class="eyebrow">TOUJOURS À PORTÉE DE MAIN</p>
+                <h2>Ajouter un appareil</h2>
+                <p class="form-intro">Notez ses références avant d’en avoir besoin.</p>
+                <form id="deviceForm">
+                    <label for="deviceName">Nom de l’appareil</label>
+                    <input id="deviceName" name="name" type="text" maxlength="60" placeholder="Ex. Mon téléphone" required>
+
+                    <div class="field-row">
+                        <div>
+                            <label for="deviceType">Type</label>
+                            <select id="deviceType" name="type" required>
+                                <option value="Téléphone">Téléphone</option>
+                                <option value="Ordinateur">Ordinateur</option>
+                                <option value="Tablette">Tablette</option>
+                                <option value="Montre connectée">Montre connectée</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="devicePlatform">Système / marque</label>
+                            <select id="devicePlatform" name="platform" required>
+                                <option value="apple">Apple</option>
+                                <option value="android">Android / Google</option>
+                                <option value="samsung">Samsung</option>
+                                <option value="windows">Windows</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label for="deviceSerial">Numéro de série (facultatif)</label>
+                    <input id="deviceSerial" name="serial" type="text" maxlength="100" autocomplete="off" placeholder="À retrouver sur la boîte ou la facture">
+
+                    <label for="deviceContact">E-mail du compte propriétaire (facultatif)</label>
+                    <input id="deviceContact" name="contact" type="text" maxlength="160" autocomplete="off" placeholder="Indice uniquement — jamais le mot de passe">
+
+                    <p class="form-hint">Ces informations ne connectent pas au compte fabricant. Ne saisissez jamais de mot de passe, code SMS ou code de récupération. Pour un proche, demandez-lui son autorisation avant d’ajouter son appareil. La position enregistrable est celle de l’appareil qui consulte cette page.</p>
+                    <button class="button button-primary button-full" type="submit">Ajouter à mon inventaire <span aria-hidden="true">＋</span></button>
+                </form>
+            </aside>
+        </div>
+
+        <section class="how-it-works">
+            <p class="eyebrow">EN CAS DE PERTE OU DE VOL</p>
+            <h2>Les bons réflexes, dans l’ordre</h2>
+            <ol>
+                <li><span>01</span><div><strong>Ouvrez le service officiel</strong><p>Connectez-vous au compte Apple, Google, Samsung ou Microsoft lié à votre appareil.</p></div></li>
+                <li><span>02</span><div><strong>Verrouillez-le et signalez sa perte</strong><p>Utilisez les options proposées par le fabricant. Ne tentez pas de récupérer vous-même un appareil volé.</p></div></li>
+                <li><span>03</span><div><strong>Protégez vos comptes</strong><p>Contactez votre opérateur pour suspendre la SIM et changez les mots de passe importants depuis un appareil sûr.</p></div></li>
+                <li><span>04</span><div><strong>Déclarez le vol</strong><p>Gardez le numéro de série et la preuve d’achat pour votre opérateur, votre assurance et les autorités.</p></div></li>
+            </ol>
+        </section>
+        <section class="studio-help">
+            <div>
+                <p class="eyebrow">BESOIN D’UN ACCOMPAGNEMENT ?</p>
+                <h2>Le studio peut vous guider</h2>
+                <p>Pour préparer votre appareil ou suivre les démarches officielles après une perte, découvrez notre service d’assistance.</p>
+            </div>
+            <a class="button button-primary" href="/assistance-appareils.html">Découvrir l’assistance <span aria-hidden="true">→</span></a>
+        </section>
+        <footer>Retrouve teste un partage de position volontaire, actif uniquement page visible ; ce n’est pas un service de localisation hors ligne. <a href="/">Unique Art Visuel Studio</a></footer>
+    </main>
+</body>
+</html>

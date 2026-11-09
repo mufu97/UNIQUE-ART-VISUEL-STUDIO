@@ -32,14 +32,26 @@ const DATA_DIR = path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const MAX_BODY_SIZE = 80 * 1024 * 1024;
+const MAX_CLIENT_DEVICE_COUNT = 100;
+const MAX_CLIENT_DEVICE_BODY_SIZE = 1024 * 1024;
+const MAX_CLIENT_LOCATION_BODY_SIZE = 4096;
+const MAX_LOCATION_SHARE_BODY_SIZE = 4096;
+const LOCATION_SHARE_INVITATION_TTL_MS = 15 * 60 * 1000;
+const LOCATION_SHARE_SESSION_TTL_MS = 60 * 60 * 1000;
+const MAX_CLIENT_RECOVERY_BODY_SIZE = 4096;
 const MAX_ASSISTANT_QUESTION_LENGTH = 8000;
 const MAX_KNOWLEDGE_UPLOAD_SIZE = 24 * 1024 * 1024;
 const MAX_KNOWLEDGE_TEXT_SIZE = 3 * 1024 * 1024;
 const MAX_KNOWLEDGE_CORPUS_SIZE = 20 * 1024 * 1024;
+const CLIENT_DEVICE_TYPES = new Set(["Téléphone", "Ordinateur", "Tablette", "Montre connectée", "Autre"]);
+const CLIENT_DEVICE_PLATFORMS = new Set(["apple", "android", "samsung", "windows", "other"]);
 let extractionsPdfActives = 0;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 120;
+const PASSWORD_RESET_WINDOW_MS = 15 * 60 * 1000;
+const PASSWORD_RESET_RATE_LIMIT = 5;
 const requestCounts = new Map();
+const passwordResetRequestCounts = new Map();
 const assistantRequestCounts = new Map();
 const adminSessions = new Map();
 const databasePool = process.env.DATABASE_URL
@@ -68,7 +80,13 @@ const PUBLIC_ROOT_FILES = new Set([
     "script.js",
     "conditions-utilisation.html",
     "confidentialite.html",
-    "mentions-legales.html"
+    "mentions-legales.html",
+    "appareils.html",
+    "appareils.css",
+    "appareils.js",
+    "assistance-appareils.html",
+    "assistance-appareils.css",
+    "assistance-appareils.js"
 ]);
 const PUBLIC_ASSET_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".svg", ".webp"]);
 const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intrigues?|personnages?|chapitres?|extraits?|passages?|histoires?|themes?|singularisme|pouvoir des mots|fins?|resumes?|interpretations?|textes?)\b/;
@@ -505,8 +523,12 @@ function verifierMotDePasse(password, storedHash) {
     return { valide: false, ancienFormat: false };
 }
 
-function creerSessionClient(clientId) {
-    const charge = Buffer.from(JSON.stringify({ clientId, expireLe: Date.now() + 7 * 24 * 60 * 60 * 1000 })).toString("base64url");
+function creerSessionClient(clientId, sessionVersion = 0) {
+    const charge = Buffer.from(JSON.stringify({
+        clientId,
+        sessionVersion,
+        expireLe: Date.now() + 7 * 24 * 60 * 60 * 1000
+    })).toString("base64url");
     const signature = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(charge).digest("base64url");
     return `${charge}.${signature}`;
 }
@@ -539,11 +561,142 @@ async function obtenirClientConnecte(request) {
     const session = lireSessionClient(request);
     if (!session) return null;
     const store = await readStore();
-    return store.clients.find((client) => String(client.id) === String(session.clientId)) || null;
+    const client = store.clients.find((item) => String(item.id) === String(session.clientId)) || null;
+    if (!client || (session.sessionVersion || 0) !== (client.sessionVersion || 0)) return null;
+    return client;
 }
 
 function cookieSessionClient(token, maxAge = 604800) {
     return `unique_art_client=${token}; HttpOnly; SameSite=Lax; Path=/api; Max-Age=${maxAge}${IS_PRODUCTION ? "; Secure" : ""}`;
+}
+
+function cookieSessionPartagePosition(token, maxAge = 3600) {
+    return `unique_art_location_share=${token}; HttpOnly; SameSite=Lax; Path=/api/location-shares; Max-Age=${maxAge}${IS_PRODUCTION ? "; Secure" : ""}`;
+}
+
+function lireSessionPartagePosition(request) {
+    const cookie = String(request.headers.cookie || "").split(";").map((value) => value.trim())
+        .find((value) => value.startsWith("unique_art_location_share="));
+    const token = cookie?.slice("unique_art_location_share=".length) || "";
+    const [charge, signature] = token.split(".");
+    if (!charge || !signature) return null;
+
+    const signatureAttendue = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(charge).digest();
+    let signatureRecue;
+    try {
+        signatureRecue = Buffer.from(signature, "base64url");
+    } catch {
+        return null;
+    }
+    if (signatureRecue.length !== signatureAttendue.length || !crypto.timingSafeEqual(signatureRecue, signatureAttendue)) return null;
+
+    try {
+        const session = JSON.parse(Buffer.from(charge, "base64url").toString("utf8"));
+        return session.expireLe > Date.now() ? session : null;
+    } catch {
+        return null;
+    }
+}
+
+function limiterReinitialisationMotDePasseAtteint(request) {
+    const now = Date.now();
+    const address = getClientAddress(request);
+    if (passwordResetRequestCounts.size > 10000) {
+        for (const [storedAddress, entry] of passwordResetRequestCounts) {
+            if (now - entry.startedAt > PASSWORD_RESET_WINDOW_MS) {
+                passwordResetRequestCounts.delete(storedAddress);
+            }
+        }
+    }
+
+    const current = passwordResetRequestCounts.get(address);
+    if (!current || now - current.startedAt > PASSWORD_RESET_WINDOW_MS) {
+        passwordResetRequestCounts.set(address, { startedAt: now, count: 1 });
+        return false;
+    }
+    current.count += 1;
+    return current.count > PASSWORD_RESET_RATE_LIMIT;
+}
+
+function urlPubliqueReinitialisationMotDePasse() {
+    const base = String(process.env.PUBLIC_BASE_URL || "").trim();
+    if (!base) return "";
+    try {
+        const url = new URL(base);
+        if (!["http:", "https:"].includes(url.protocol) || (IS_PRODUCTION && url.protocol !== "https:")
+            || url.username || url.password || url.search || url.hash) return "";
+        return `${url.origin}/appareils.html`;
+    } catch {
+        return "";
+    }
+}
+
+async function envoyerEmailReinitialisationMotDePasse(client, resetUrl) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    if (!apiKey || !from) return false;
+
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            from,
+            to: [client.email],
+            subject: "Réinitialisation de votre mot de passe Retrouve",
+            text: `Une demande de réinitialisation a été faite pour votre compte. Ouvrez ce lien dans les 30 minutes : ${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.`,
+            html: `<p>Une demande de réinitialisation a été faite pour votre compte Retrouve.</p><p><a href="${echapperEmail(resetUrl)}">Choisir un nouveau mot de passe</a></p><p>Ce lien expire dans 30 minutes. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.</p>`
+        }),
+        signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) throw new Error(`Le fournisseur d’e-mail a répondu avec le statut ${response.status}.`);
+    return true;
+}
+
+function validerInventaireAppareils(value) {
+    if (!Array.isArray(value) || value.length > MAX_CLIENT_DEVICE_COUNT) return null;
+
+    const ids = new Set();
+    const appareils = [];
+    for (const item of value) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+        if (typeof item.id !== "string" || !item.id.trim() || item.id.length > 80 || ids.has(item.id)) return null;
+        if (typeof item.name !== "string" || !item.name.trim() || item.name.length > 60) return null;
+        if (!CLIENT_DEVICE_TYPES.has(item.type) || !CLIENT_DEVICE_PLATFORMS.has(item.platform)) return null;
+        if (typeof item.serial !== "string" || item.serial.length > 100) return null;
+        if (typeof item.contact !== "string" || item.contact.length > 160) return null;
+        if (!["ready", "lost"].includes(item.status)) return null;
+
+        let location = null;
+        if (item.location !== null) {
+            if (!item.location || typeof item.location !== "object" || Array.isArray(item.location)
+                || !Number.isFinite(item.location.latitude) || Math.abs(item.location.latitude) > 90
+                || !Number.isFinite(item.location.longitude) || Math.abs(item.location.longitude) > 180
+                || typeof item.location.recordedAt !== "string" || item.location.recordedAt.length > 40
+                || !Number.isFinite(Date.parse(item.location.recordedAt))) return null;
+            location = {
+                latitude: item.location.latitude,
+                longitude: item.location.longitude,
+                recordedAt: item.location.recordedAt
+            };
+        }
+
+        ids.add(item.id);
+        appareils.push({
+            id: item.id,
+            name: item.name.trim(),
+            type: item.type,
+            platform: item.platform,
+            serial: item.serial,
+            contact: item.contact,
+            status: item.status,
+            location
+        });
+    }
+
+    return appareils;
 }
 
 async function envoyerEmailConfirmation(client) {
@@ -752,6 +905,455 @@ async function handleApi(request, response, url) {
             "Set-Cookie": cookieSessionClient("", 0)
         });
         response.end();
+        return true;
+    }
+
+    if (url.pathname === "/api/password/forgot" && request.method === "POST") {
+        if (limiterReinitialisationMotDePasseAtteint(request)) {
+            sendJson(response, 429, { error: "Trop de demandes. Réessayez dans quelques minutes." }, { "Retry-After": "900" });
+            return true;
+        }
+        const pageUrl = urlPubliqueReinitialisationMotDePasse();
+        if (!pageUrl || !process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+            sendJson(response, 503, { error: "La récupération par e-mail n’est pas encore configurée." });
+            return true;
+        }
+
+        readBody(request, MAX_CLIENT_RECOVERY_BODY_SIZE).then(async (body) => {
+            const email = String(body.email || "").trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 150) {
+                sendJson(response, 400, { error: "Saisissez une adresse e-mail valide." });
+                return;
+            }
+
+            const store = await readStore();
+            const client = store.clients.find((item) => item.email === email);
+            if (client) {
+                const token = crypto.randomBytes(32).toString("base64url");
+                client.passwordResetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+                client.passwordResetExpiresAt = Date.now() + 30 * 60 * 1000;
+                await writeStore(store);
+
+                try {
+                    await envoyerEmailReinitialisationMotDePasse(
+                        client,
+                        `${pageUrl}?reset_token=${encodeURIComponent(token)}`
+                    );
+                } catch (error) {
+                    console.error("E-mail de réinitialisation non envoyé:", error.message);
+                }
+            }
+            sendJson(response, 202, {
+                ok: true,
+                message: "Si cette adresse est associée à un compte, un lien de réinitialisation sera envoyé. Vérifiez aussi vos courriers indésirables."
+            });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La demande est trop volumineuse." : error.message });
+        });
+        return true;
+    }
+
+    if (url.pathname === "/api/password/reset" && request.method === "POST") {
+        readBody(request, MAX_CLIENT_RECOVERY_BODY_SIZE).then(async (body) => {
+            const token = String(body.token || "");
+            const motDePasse = String(body.motDePasse || "");
+            if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+                sendJson(response, 400, { error: "Le lien de réinitialisation est invalide ou expiré." });
+                return;
+            }
+            if ([...motDePasse].length < 10 || [...motDePasse].length > 128) {
+                sendJson(response, 400, { error: "Le mot de passe doit contenir entre 10 et 128 caractères." });
+                return;
+            }
+
+            const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+            const store = await readStore();
+            const client = store.clients.find((item) => item.passwordResetTokenHash === tokenHash
+                && Number(item.passwordResetExpiresAt) > Date.now());
+            if (!client) {
+                sendJson(response, 400, { error: "Le lien de réinitialisation est invalide ou expiré. Demandez-en un nouveau." });
+                return;
+            }
+
+            client.motDePasseHash = hashPassword(motDePasse);
+            client.sessionVersion = (Number.isSafeInteger(client.sessionVersion) ? client.sessionVersion : 0) + 1;
+            delete client.passwordResetTokenHash;
+            delete client.passwordResetExpiresAt;
+            await writeStore(store);
+            sendJson(response, 200, { ok: true, message: "Votre mot de passe a été modifié. Vous pouvez vous connecter." });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La demande est trop volumineuse." : error.message });
+        });
+        return true;
+    }
+
+    if (url.pathname === "/api/client/devices" && request.method === "GET") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+
+        const appareils = validerInventaireAppareils(client.appareils || []);
+        if (!appareils) {
+            sendJson(response, 500, { error: "L’inventaire du compte est invalide. Contactez le studio avant de le modifier." });
+            return true;
+        }
+        sendJson(response, 200, { appareils });
+        return true;
+    }
+
+    if (url.pathname === "/api/client/devices" && request.method === "PUT") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+
+        readBody(request, MAX_CLIENT_DEVICE_BODY_SIZE).then(async (body) => {
+            const appareils = validerInventaireAppareils(body.appareils);
+            if (!appareils) {
+                sendJson(response, 400, { error: "Inventaire invalide : vérifiez les champs et la limite de 100 appareils." });
+                return;
+            }
+
+            const store = await readStore();
+            const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!clientActuel) {
+                sendJson(response, 401, { error: "Veuillez vous reconnecter à votre compte client." });
+                return;
+            }
+            const idsAppareils = new Set(appareils.map((appareil) => appareil.id));
+            if (Array.isArray(clientActuel.locationShares)) {
+                clientActuel.locationShares = clientActuel.locationShares.filter((partage) => idsAppareils.has(partage.deviceId));
+            }
+            clientActuel.appareils = appareils;
+            await writeStore(store);
+            sendJson(response, 200, { appareils });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "L’inventaire dépasse la taille maximale autorisée." : error.message });
+        });
+        return true;
+    }
+
+    const locationRoute = url.pathname.match(/^\/api\/client\/devices\/([a-zA-Z0-9-]{1,80})\/location$/);
+    if (locationRoute && ["POST", "DELETE"].includes(request.method)) {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+
+        const deviceId = locationRoute[1];
+        const mettreAJourPosition = async (position) => {
+            const store = await readStore();
+            const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!clientActuel) {
+                sendJson(response, 401, { error: "Veuillez vous reconnecter à votre compte client." });
+                return;
+            }
+            const appareils = validerInventaireAppareils(clientActuel.appareils || []);
+            if (!appareils) {
+                sendJson(response, 500, { error: "L’inventaire du compte est invalide. Contactez le studio avant de le modifier." });
+                return;
+            }
+            const appareil = appareils.find((item) => item.id === deviceId);
+            if (!appareil) {
+                sendJson(response, 404, { error: "Cet appareil n’existe pas dans votre inventaire." });
+                return;
+            }
+
+            appareil.location = position;
+            if (position === null && Array.isArray(clientActuel.locationShares)) {
+                for (const partage of clientActuel.locationShares) {
+                    if (partage.deviceId === appareil.id) partage.lastLocation = null;
+                }
+            }
+            clientActuel.appareils = appareils;
+            await writeStore(store);
+            sendJson(response, 200, { location: appareil.location });
+        };
+
+        if (request.method === "DELETE") {
+            await mettreAJourPosition(null);
+            return true;
+        }
+
+        readBody(request, MAX_CLIENT_LOCATION_BODY_SIZE).then(async (body) => {
+            if (!body || !Number.isFinite(body.latitude) || Math.abs(body.latitude) > 90
+                || !Number.isFinite(body.longitude) || Math.abs(body.longitude) > 180) {
+                sendJson(response, 400, { error: "Coordonnées de position invalides." });
+                return;
+            }
+            await mettreAJourPosition({
+                latitude: body.latitude,
+                longitude: body.longitude,
+                recordedAt: new Date().toISOString()
+            });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La position dépasse la taille maximale autorisée." : error.message });
+        });
+        return true;
+    }
+
+    if (url.pathname === "/api/client/location-shares" && request.method === "POST") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+
+        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then(async (body) => {
+            const store = await readStore();
+            const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!clientActuel) {
+                sendJson(response, 401, { error: "Veuillez vous reconnecter à votre compte client." });
+                return;
+            }
+            const appareils = validerInventaireAppareils(clientActuel.appareils || []);
+            if (!appareils) {
+                sendJson(response, 500, { error: "L’inventaire du compte est invalide. Contactez le studio avant de le modifier." });
+                return;
+            }
+            if (typeof body.deviceId !== "string" || !body.deviceId.trim()) {
+                sendJson(response, 400, { error: "Choisissez un appareil de votre inventaire." });
+                return;
+            }
+            const appareil = appareils.find((item) => item.id === body.deviceId);
+            if (!appareil) {
+                sendJson(response, 404, { error: "Cet appareil n’existe pas dans votre inventaire." });
+                return;
+            }
+
+            const maintenant = Date.now();
+            const partages = clientActuel.locationShares || [];
+            if (!Array.isArray(partages)) {
+                sendJson(response, 500, { error: "Les invitations de position du compte sont invalides." });
+                return;
+            }
+            const partageActif = partages.some((partage) => partage.deviceId === appareil.id
+                && !partage.revokedAt
+                && !partage.stoppedAt
+                && (Date.parse(partage.activeUntil || partage.invitationExpiresAt) || 0) > maintenant);
+            if (partageActif) {
+                sendJson(response, 409, { error: "Une invitation de partage est déjà en cours pour cet appareil. Révoquez-la ou attendez son expiration." });
+                return;
+            }
+
+            const invitationToken = crypto.randomBytes(32).toString("base64url");
+            const invitationExpiresAt = new Date(maintenant + LOCATION_SHARE_INVITATION_TTL_MS).toISOString();
+            const partage = {
+                id: crypto.randomUUID(),
+                deviceId: appareil.id,
+                invitationTokenHash: crypto.createHash("sha256").update(invitationToken).digest("hex"),
+                createdAt: new Date(maintenant).toISOString(),
+                invitationExpiresAt,
+                acceptedAt: null,
+                activeUntil: null,
+                stoppedAt: null,
+                revokedAt: null,
+                lastLocation: null
+            };
+            clientActuel.locationShares = [...partages, partage];
+            await writeStore(store);
+            sendJson(response, 201, {
+                partage: {
+                    id: partage.id,
+                    deviceId: appareil.id,
+                    deviceName: appareil.name,
+                    invitationToken,
+                    invitationExpiresAt
+                }
+            });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La demande de partage est trop volumineuse." : error.message });
+        });
+        return true;
+    }
+
+    if (url.pathname === "/api/client/location-shares" && request.method === "GET") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+        const appareils = validerInventaireAppareils(client.appareils || []);
+        if (!appareils || !Array.isArray(client.locationShares || [])) {
+            sendJson(response, 500, { error: "Les données de partage du compte sont invalides." });
+            return true;
+        }
+        const nomsAppareils = new Map(appareils.map((appareil) => [appareil.id, appareil.name]));
+        const maintenant = Date.now();
+        const partages = (client.locationShares || []).map((partage) => {
+            const expiration = Date.parse(partage.activeUntil || partage.invitationExpiresAt);
+            let status = "expired";
+            if (partage.revokedAt) status = "revoked";
+            else if (partage.stoppedAt) status = "stopped";
+            else if (partage.acceptedAt && expiration > maintenant) {
+                const dernierePosition = Date.parse(partage.lastLocation?.recordedAt || "");
+                status = Number.isFinite(dernierePosition) && maintenant - dernierePosition > 90 * 1000
+                    ? "paused"
+                    : "active";
+            }
+            else if (!partage.acceptedAt && expiration > maintenant) status = "pending";
+            return {
+                id: partage.id,
+                deviceId: partage.deviceId,
+                deviceName: nomsAppareils.get(partage.deviceId) || "Appareil supprimé",
+                status,
+                createdAt: partage.createdAt,
+                invitationExpiresAt: partage.invitationExpiresAt,
+                activeUntil: partage.activeUntil,
+                lastLocation: partage.lastLocation || null
+            };
+        });
+        sendJson(response, 200, { partages });
+        return true;
+    }
+
+    const partageOwnerRoute = url.pathname.match(/^\/api\/client\/location-shares\/([a-zA-Z0-9-]{1,80})$/);
+    if (partageOwnerRoute && request.method === "DELETE") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+        const store = await readStore();
+        const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
+        const partage = clientActuel?.locationShares?.find((item) => item.id === partageOwnerRoute[1]);
+        if (!partage) {
+            sendJson(response, 404, { error: "Invitation de partage introuvable." });
+            return true;
+        }
+        partage.revokedAt = new Date().toISOString();
+        await writeStore(store);
+        sendJson(response, 200, { ok: true });
+        return true;
+    }
+
+    if (url.pathname === "/api/location-shares/accept" && request.method === "POST") {
+        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then(async (body) => {
+            if (typeof body.token !== "string" || !/^[A-Za-z0-9_-]{40,50}$/.test(body.token)) {
+                sendJson(response, 400, { error: "Cette invitation de partage est invalide." });
+                return;
+            }
+            const store = await readStore();
+            const tokenHash = crypto.createHash("sha256").update(body.token).digest("hex");
+            const client = store.clients.find((item) => (item.locationShares || [])
+                .some((partage) => partage.invitationTokenHash === tokenHash));
+            const partage = client?.locationShares?.find((item) => item.invitationTokenHash === tokenHash);
+            if (!client || !partage) {
+                sendJson(response, 404, { error: "Cette invitation de partage est invalide ou a déjà été utilisée." });
+                return;
+            }
+            if (partage.revokedAt || partage.acceptedAt || Date.parse(partage.invitationExpiresAt) <= Date.now()) {
+                sendJson(response, 410, { error: "Cette invitation a expiré ou a déjà été utilisée. Demandez-en une nouvelle au propriétaire du compte." });
+                return;
+            }
+            const appareils = validerInventaireAppareils(client.appareils || []);
+            const appareil = appareils?.find((item) => item.id === partage.deviceId);
+            if (!appareil) {
+                sendJson(response, 410, { error: "L’appareil associé à cette invitation n’est plus disponible." });
+                return;
+            }
+
+            const maintenant = Date.now();
+            partage.acceptedAt = new Date(maintenant).toISOString();
+            partage.activeUntil = new Date(maintenant + LOCATION_SHARE_SESSION_TTL_MS).toISOString();
+            const charge = Buffer.from(JSON.stringify({
+                clientId: client.id,
+                sessionVersion: client.sessionVersion || 0,
+                shareId: partage.id,
+                expireLe: maintenant + LOCATION_SHARE_SESSION_TTL_MS
+            })).toString("base64url");
+            const signature = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(charge).digest("base64url");
+            await writeStore(store);
+            sendJson(response, 200, {
+                partage: {
+                    id: partage.id,
+                    deviceName: appareil.name,
+                    activeUntil: partage.activeUntil
+                }
+            }, {
+                "Set-Cookie": cookieSessionPartagePosition(`${charge}.${signature}`)
+            });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La demande de partage est trop volumineuse." : error.message });
+        });
+        return true;
+    }
+
+    if (url.pathname === "/api/location-shares/position" && ["POST", "DELETE"].includes(request.method)) {
+        const session = lireSessionPartagePosition(request);
+        if (!session) {
+            sendJson(response, 401, { error: "La session de partage a expiré. Demandez une nouvelle invitation." }, {
+                "Set-Cookie": cookieSessionPartagePosition("", 0)
+            });
+            return true;
+        }
+        const store = await readStore();
+        const client = store.clients.find((item) => String(item.id) === String(session.clientId));
+        const partage = client?.locationShares?.find((item) => item.id === session.shareId);
+        if (!client || (client.sessionVersion || 0) !== session.sessionVersion
+            || !partage || partage.revokedAt || partage.stoppedAt
+            || Date.parse(partage.activeUntil || "") <= Date.now()) {
+            sendJson(response, 410, { error: "Ce partage a été arrêté ou révoqué." }, {
+                "Set-Cookie": cookieSessionPartagePosition("", 0)
+            });
+            return true;
+        }
+
+        if (request.method === "DELETE") {
+            partage.stoppedAt = new Date().toISOString();
+            await writeStore(store);
+            sendJson(response, 200, { ok: true }, {
+                "Set-Cookie": cookieSessionPartagePosition("", 0)
+            });
+            return true;
+        }
+
+        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then(async (body) => {
+            if (!Number.isFinite(body.latitude) || Math.abs(body.latitude) > 90
+                || !Number.isFinite(body.longitude) || Math.abs(body.longitude) > 180) {
+                sendJson(response, 400, { error: "Coordonnées de position invalides." });
+                return;
+            }
+            const storeActuel = await readStore();
+            const clientActuel = storeActuel.clients.find((item) => String(item.id) === String(session.clientId));
+            const partageActuel = clientActuel?.locationShares?.find((item) => item.id === session.shareId);
+            const appareils = validerInventaireAppareils(clientActuel?.appareils || []);
+            const appareil = appareils?.find((item) => item.id === partageActuel?.deviceId);
+            if (!clientActuel || !partageActuel || partageActuel.revokedAt || partageActuel.stoppedAt
+                || Date.parse(partageActuel.activeUntil || "") <= Date.now()) {
+                sendJson(response, 410, { error: "Ce partage a été arrêté ou révoqué." }, {
+                    "Set-Cookie": cookieSessionPartagePosition("", 0)
+                });
+                return;
+            }
+            if (!appareils || !appareil) {
+                sendJson(response, 404, { error: "L’appareil associé à ce partage n’existe plus." });
+                return;
+            }
+            const position = {
+                latitude: body.latitude,
+                longitude: body.longitude,
+                recordedAt: new Date().toISOString()
+            };
+            partageActuel.lastLocation = position;
+            appareil.location = position;
+            clientActuel.appareils = appareils;
+            await writeStore(storeActuel);
+            sendJson(response, 200, { location: position });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La position dépasse la taille maximale autorisée." : error.message });
+        });
         return true;
     }
 
@@ -1027,6 +1629,9 @@ async function handleApi(request, response, url) {
             providers: {
                 emailSending: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
                 emailReceiving: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_WEBHOOK_SECRET),
+                passwordRecovery: Boolean(
+                    process.env.RESEND_API_KEY && process.env.EMAIL_FROM && urlPubliqueReinitialisationMotDePasse()
+                ),
                 payments: Boolean(configurationPaiement()),
                 writingAssistant: Boolean(configurationAssistant())
             }
@@ -1546,7 +2151,7 @@ async function handleApi(request, response, url) {
                 nom: client.nom,
                 email: client.email,
                 telephone: client.telephone
-            }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id)) });
+            }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id, client.sessionVersion || 0)) });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
@@ -1697,7 +2302,7 @@ initialiserStockage().then(() => http.createServer((request, response) => {
 
     if (request.method === "OPTIONS") {
         response.writeHead(204, {
-            "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Origin": "*"
         });

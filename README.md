@@ -44,6 +44,12 @@ En local, les données sont enregistrées dans `data/store.json`, qui n’est pa
 - `GET|POST|DELETE /api/admin/session` (session administrateur sécurisée par cookie `HttpOnly`)
 - `GET|DELETE /api/client/session`
 - `GET /api/client/orders` et `GET /api/client/discussions` (données privées du compte connecté)
+- `GET|PUT /api/client/devices` (inventaire personnel du compte connecté)
+- `POST|DELETE /api/client/devices/:id/location` (partage ou effacement de la dernière position d’un appareil de l’inventaire, compte connecté requis)
+- `GET|POST /api/client/location-shares` et `DELETE /api/client/location-shares/:id` (création, suivi et révocation des invitations à usage unique du compte connecté)
+- `POST /api/location-shares/accept` (acceptation volontaire d’une invitation ; crée une session limitée sans ouvrir le compte du propriétaire)
+- `POST|DELETE /api/location-shares/position` (envoi ou arrêt d’une session invitée de partage de position)
+- `POST /api/password/forgot` et `POST /api/password/reset` (réinitialisation à usage unique, lien valable 30 minutes)
 - `POST /api/orders` (création de commande et initialisation CinetPay)
 - `POST /api/payments/notify` (notification vérifiée auprès de CinetPay)
 - `GET /api/payments/status?transaction_id=…` (confirmation de commande)
@@ -67,32 +73,40 @@ Configurez un fournisseur compatible avec l’API de conversation OpenAI dans `.
 - `AI_API_KEY` : clé secrète du fournisseur (facultative pour Ollama local ; gardez-la côté serveur).
 - `AI_MODEL` : identifiant du modèle disponible chez ce fournisseur.
 
-Exemple avec Ollama : installez Ollama, téléchargez le modèle avec `ollama pull qwen2.5:7b`, puis configurez `AI_API_URL=http://127.0.0.1:11434/v1/chat/completions`, `AI_MODEL=qwen2.5:7b` et laissez la clé vide. Ollama doit rester démarré sur l’ordinateur qui héberge le site. Pour Render ou un autre hébergement public, utilisez une URL HTTPS et un fournisseur accessible depuis cet hébergeur. Les manuscrits et l’index sont stockés par le backend. Les questions, l’historique limité et les passages retrouvés sont transmis au fournisseur IA, qui peut appliquer ses propres règles de conservation. Importez uniquement des textes pour lesquels le studio a les droits nécessaires.
+Exemple avec Ollama : installez Ollama, téléchargez le modèle avec `ollama pull qwen2.5:7b`, puis configurez `AI_API_URL=http://127.0.0.1:11434/v1/chat/completions`, `AI_MODEL=qwen2.5:7b` et laissez la clé vide. Ollama doit rester démarré sur l’ordinateur qui héberge le site. Pour Railway ou un autre hébergement public, utilisez une URL HTTPS et un fournisseur accessible depuis cet hébergeur. Les manuscrits et l’index sont stockés par le backend. Les questions, l’historique limité et les passages retrouvés sont transmis au fournisseur IA, qui peut appliquer ses propres règles de conservation. Importez uniquement des textes pour lesquels le studio a les droits nécessaires.
 
 Les lecteurs peuvent **terminer et enregistrer** une discussion, puis la retrouver dans l’historique local du même navigateur. Les notes restent dans le stockage local de cet appareil, pas dans le compte client ni dans la base de données du studio ; elles ne se synchronisent donc pas entre appareils. Le bouton **Effacer l’historique** supprime les notes locales. Le navigateur n’enregistre pas plus de 12 discussions et conserve jusqu’à 40 messages par discussion.
 
-Le bouton micro utilise la reconnaissance vocale française de Windows via l’application de bureau **Assistant personnel** (dossier `assistant-windows`). Lancez la version 0.4.1 sur le même ordinateur que le navigateur ; elle ouvre un service local limité à `127.0.0.1`. La dictée reste active jusqu’au second appui, tolère les pauses de 3 à 4 secondes, attend jusqu’à 5 minutes le début de la parole et accepte jusqu’à 8 000 caractères. Le texte reconnu est envoyé automatiquement à l’assistant IA à l’arrêt. L’audio est traité localement par Windows, n’est pas stocké par le site et n’est pas transmis à un prestataire vocal ; seul le texte reconnu est envoyé au fournisseur IA configuré. Autorisez aussi l’accès au réseau local si le navigateur le demande. Le site doit être ouvert en HTTPS ou sur `localhost`. En production, l’origine du site est autorisée par défaut pour `https://unique-art-visuel-studio.onrender.com` ; si le domaine est différent, ajoutez-le à `ASSISTANT_ALLOWED_ORIGINS` (liste séparée par des virgules) dans l’environnement Windows avant de démarrer l’application. La synthèse vocale des réponses reste assurée par le navigateur.
+Le bouton micro utilise l’API de reconnaissance vocale intégrée au navigateur ; aucune application Windows auxiliaire n’est requise. Utilisez un navigateur compatible (notamment Chrome ou Microsoft Edge), ouvrez le site en HTTPS ou sur `localhost`, puis autorisez l’accès au microphone. Appuyez une première fois pour dicter et une seconde fois pour arrêter et envoyer la transcription à l’assistant. Une pause prolongée de cinq minutes arrête l’écoute. Selon le navigateur et son fournisseur, la reconnaissance vocale peut transmettre l’audio à un service externe ; seul le texte reconnu est ensuite envoyé au fournisseur IA configuré pour le site. Informez les lecteurs de ce traitement avant d’activer le micro. La synthèse vocale des réponses reste assurée par le navigateur.
 
-La version portable Windows 0.4.1 est générée avec `npm.cmd --prefix assistant-windows run portable -- --config.directories.output=release-0.4.1-portable --config.electronDist=./node_modules/electron/dist`. Lancez ensuite `assistant-windows/release-0.4.1-portable/win-unpacked/Assistant personnel.exe`. L’installateur NSIS (`npm run dist`) peut nécessiter un environnement Windows autorisé à exécuter ses outils de génération.
+## Assistance appareils
+
+`/assistance-appareils.html` présente une offre d’accompagnement à la prévention et aux démarches officielles en cas de perte. Le formulaire de premier contact demande le nom, l’adresse e-mail et une description générale, puis utilise le point de contact existant `/api/contact`. Il ne demande ni IMEI, ni numéro de série, ni identifiant de compte, ni mot de passe ou code de récupération. Les demandes sont envoyées au studio et archivées dans sa boîte de réception applicative. Avant d’ouvrir ce service au public, définissez et publiez les frais éventuels, délais de réponse et règles de conservation applicables.
+
+Le studio guide le propriétaire ; il ne contourne pas les mots de passe, ne prend pas le contrôle des comptes, ne promet pas de géolocaliser un appareil hors ligne et n’active pas secrètement micro ou caméra. Le propriétaire doit s’authentifier lui-même auprès du fabricant ou de l’opérateur. Aucune intégration ni aucun partenariat Orange n’est présumé par cette page.
 
 ## Mise en production
 
 Le parcours de paiement CinetPay est intégré : le serveur fixe les prix, crée la commande, redirige vers le paiement hébergé et confirme le règlement en vérifiant la transaction auprès de CinetPay. L’administration vérifie maintenant son mot de passe côté serveur et utilise un cookie de session `HttpOnly`.
 
-## Hébergement recommandé : Render
+## Déployer le site sur Railway avec Supabase
 
-Le fichier `render.yaml` prépare le déploiement du site et de son serveur Node sur Render.
+Supabase héberge la base PostgreSQL ; le serveur Node.js du site doit tourner sur un hébergeur Node comme Railway. Le dépôt contient déjà la commande `npm start` et Railway fournit automatiquement le port `PORT`.
 
-1. Créer un dépôt GitHub et y envoyer ce dossier.
-2. Sur Render, choisir **New > Blueprint** puis sélectionner le dépôt.
-3. Renseigner `ADMIN_API_KEY` dans les variables secrètes Render. Configurez aussi `CLIENT_SESSION_SECRET` avec une valeur aléatoire distincte d’au moins 32 octets ; s’il est absent, le serveur utilise `ADMIN_API_KEY` pour préserver les sessions existantes.
-4. Renseigner aussi les identifiants CinetPay et `PUBLIC_BASE_URL` (voir ci-dessous), puis déployer et tester `https://votre-service.onrender.com/api/health`.
+1. Dans Railway, créez un projet avec **Deploy from GitHub repo** et sélectionnez ce dépôt.
+2. Dans **Variables** du service, ajoutez `NODE_ENV=production`, `ADMIN_API_KEY`, `CLIENT_SESSION_SECRET`, `DATABASE_URL` et `PUBLIC_BASE_URL`.
+3. Pour `DATABASE_URL`, ouvrez votre projet Supabase, cliquez sur **Connect**, puis choisissez la chaîne PostgreSQL du **Session pooler**. Remplacez le mot de passe indicatif par le mot de passe de la base. Si celui-ci contient des caractères spéciaux, encodez-les pour une URL. Gardez cette chaîne secrète et ne la mettez jamais dans le code.
+4. Générez `ADMIN_API_KEY` et `CLIENT_SESSION_SECRET` comme deux valeurs aléatoires distinctes d’au moins 32 octets. Par exemple, exécutez deux fois `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"` et copiez chaque résultat directement dans la variable correspondante de Railway.
+5. Dans Railway, créez un domaine public HTTPS pour le service, puis définissez `PUBLIC_BASE_URL` sur cette adresse exacte, sans barre oblique finale.
+6. Dans les réglages de déploiement Railway, définissez le chemin de vérification de santé sur `/api/health`, puis déployez. Vérifiez que `https://votre-domaine/api/health` renvoie un JSON avec `"ok": true`.
 
-Le Blueprint crée aussi une base PostgreSQL et transmet automatiquement sa chaîne de connexion avec `DATABASE_URL`. Les comptes, commandes, discussions, actualités et créations sont conservés après les redéploiements. En local, sans `DATABASE_URL`, le serveur utilise `data/store.json`.
+Au premier démarrage, le serveur crée la table `app_store` dans la base Supabase si elle n’existe pas encore. Dans le tableau de bord Supabase, utilisez **Connect** pour récupérer la chaîne de connexion ; n’utilisez pas la clé API publique à la place de `DATABASE_URL`. Sans `DATABASE_URL`, le serveur utilise un fichier local, qui n’est pas adapté à la conservation des données sur un hébergement éphémère.
+
+Les services optionnels doivent eux aussi être configurés comme variables Railway : `CINETPAY_API_KEY` et `CINETPAY_SITE_ID` pour les paiements ; `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO` et `RESEND_WEBHOOK_SECRET` pour les e-mails ; `AI_API_URL`, `AI_API_KEY` et `AI_MODEL` pour l’assistant IA. N’ajoutez que les fournisseurs réellement utilisés.
 
 ### Activer les paiements CinetPay
 
-Dans les variables secrètes Render, renseignez `CINETPAY_API_KEY` et `CINETPAY_SITE_ID` depuis l’espace marchand CinetPay, puis `PUBLIC_BASE_URL` avec l’adresse publique HTTPS exacte du site (par exemple `https://votre-service.onrender.com`). Configurez également `https://votre-service.onrender.com/api/payments/notify` comme URL de notification dans CinetPay. Les identifiants restent côté serveur ; les prix ne sont jamais acceptés depuis le navigateur. Un paiement n’est marqué comme confirmé qu’après vérification de son identifiant, de son montant et de sa devise auprès de CinetPay. Les moyens disponibles (Mobile Money, carte, opérateurs) dépendent de l’activation du compte marchand.
+Dans les variables Railway, renseignez `CINETPAY_API_KEY` et `CINETPAY_SITE_ID` depuis l’espace marchand CinetPay, puis `PUBLIC_BASE_URL` avec l’adresse publique HTTPS exacte du site. Configurez également `<PUBLIC_BASE_URL>/api/payments/notify` comme URL de notification dans CinetPay. Les identifiants restent côté serveur ; les prix ne sont jamais acceptés depuis le navigateur. Un paiement n’est marqué comme confirmé qu’après vérification de son identifiant, de son montant et de sa devise auprès de CinetPay. Les moyens disponibles (Mobile Money, carte, opérateurs) dépendent de l’activation du compte marchand.
 
 ## Préparation à une forte audience
 
@@ -104,7 +118,7 @@ Avant un lancement massif, il faut impérativement :
 - stocker les images, PDF et vidéos dans un stockage objet avec CDN, au lieu de les envoyer en base64 dans le JSON ;
 - remplacer le limiteur de débit en mémoire par un service partagé adapté à plusieurs instances ;
 - ajouter une protection anti-robot aux formulaires de création de compte et de contact ;
-- placer Render derrière son autoscaling, un CDN et une protection anti-DDoS ;
+- placer l’hébergement derrière son autoscaling, un CDN et une protection anti-DDoS ;
 - ajouter des files d’attente pour les e-mails, paiements et traitements vidéo ;
 - surveiller les erreurs, les temps de réponse et les paiements avec des alertes ;
 - tester la charge avant l’ouverture publique.
@@ -117,14 +131,27 @@ Le traducteur des échanges prend en charge le français, l’anglais, l’espag
 
 ## Envoi et réception des e-mails
 
-Le formulaire de contact envoie les demandes à l’adresse du studio configurée et les archive dans le tableau de bord administrateur. Les réponses aux discussions clients utilisent également Resend. Configurez ces variables secrètes dans Render :
+Le formulaire de contact envoie les demandes à l’adresse du studio configurée et les archive dans le tableau de bord administrateur. Les réponses aux discussions clients utilisent également Resend. Configurez ces variables secrètes dans Railway :
 
 - `RESEND_API_KEY` : clé API Resend.
 - `EMAIL_FROM` : adresse d’expédition vérifiée chez Resend, par exemple `Unique Art Studio <contact@votredomaine.com>`.
 - `EMAIL_TO` : adresse qui reçoit les demandes du formulaire (facultatif ; par défaut `dieudonnejeannde@gmail.com`).
 - `RESEND_WEBHOOK_SECRET` : secret de signature fourni par Resend.
 - `CLIENT_SESSION_SECRET` : secret de signature des sessions client ; configurez une valeur aléatoire distincte de `ADMIN_API_KEY`. Si elle est absente, le serveur réutilise la clé administrateur ; en local, sans clé administrateur, une clé temporaire aléatoire est créée au démarrage.
+- `PUBLIC_BASE_URL` : URL publique du site, requise pour construire un lien de réinitialisation sûr ; utilisez l’URL HTTPS exacte en production.
 
 Après confirmation effective d’un paiement, le serveur tente d’envoyer un reçu au client et une alerte au studio. Les envois sont réessayés lors d’une nouvelle vérification du statut si Resend était indisponible.
 
-Pour recevoir les courriels envoyés directement à l’adresse du studio, activez la réception sur un domaine dans Resend puis créez un webhook vers `https://votre-service.onrender.com/api/webhooks/resend`, avec l’événement `email.received`. Copiez son secret de signature dans `RESEND_WEBHOOK_SECRET`. Les messages entrants apparaîtront dans la boîte de réception du tableau de bord. En local, configurez les mêmes variables d’environnement avant `npm start`.
+L’espace appareils permet de demander un lien de réinitialisation de mot de passe par e-mail. Les demandes ne révèlent pas si l’adresse correspond à un compte ; les liens sont à usage unique, expirent après 30 minutes et sont limités à cinq demandes par adresse réseau et par instance du serveur sur 15 minutes. Une réinitialisation invalide les sessions client déjà ouvertes. Cette fonctionnalité nécessite `RESEND_API_KEY`, `EMAIL_FROM` et `PUBLIC_BASE_URL` correctement configurés ; le champ `providers.passwordRecovery` de `/api/health` indique si ces paramètres sont présents. Sinon, l’API signale que la récupération n’est pas disponible.
+
+Pour recevoir les courriels envoyés directement à l’adresse du studio, activez la réception sur un domaine dans Resend puis créez un webhook vers `<PUBLIC_BASE_URL>/api/webhooks/resend`, avec l’événement `email.received`. Copiez son secret de signature dans `RESEND_WEBHOOK_SECRET`. Les messages entrants apparaîtront dans la boîte de réception du tableau de bord. En local, configurez les mêmes variables d’environnement avant `npm start`.
+
+## Espace « Mes appareils »
+
+La page `/appareils.html` permet de conserver un inventaire personnel (type d’appareil, système, numéro de série facultatif et indice de compte), de le marquer comme perdu et d’ouvrir le service officiel du fabricant. Sans connexion, l’inventaire reste dans le navigateur. Après connexion au compte client, il est synchronisé avec le serveur et peut être consulté depuis un autre appareil ; la fusion des données locales dans le compte demande une confirmation explicite. La page inclut la récupération de compte par e-mail lorsque Resend et `PUBLIC_BASE_URL` sont configurés. Les utilisateurs peuvent exporter ou importer une sauvegarde JSON. Ne saisissez jamais de mot de passe, de code de vérification ou de récupération dans l’inventaire.
+
+Pour une démonstration avec un testeur, le propriétaire se connecte à `/appareils.html`, ajoute un appareil d’essai à son inventaire, crée une invitation et transmet son lien privé. Le lien expire après 15 minutes et ne peut être accepté qu’une fois. Le testeur n’a pas besoin de compte ni du mot de passe du propriétaire : il ouvre le lien HTTPS, lit les informations, confirme son accord et autorise la géolocalisation du navigateur. La position est associée à l’appareil choisi par le propriétaire dans son inventaire. Le propriétaire voit la dernière position et peut révoquer le partage depuis son compte ; le testeur peut l’arrêter depuis sa page. La session invitée expire au plus tard après une heure. Les positions sont envoyées au plus une fois toutes les 30 secondes tant que la page reste visible ; la dernière position demeure dans l’inventaire jusqu’à son effacement ou la suppression de l’appareil. Une invitation en attente ou un partage actif empêche la création d’une deuxième invitation pour le même appareil.
+
+Retrouve n’envoie pas lui-même les coordonnées à Google, mais le navigateur ou le système peut utiliser son propre fournisseur de géolocalisation. Le lien cartographique ouvre OpenStreetMap ; les coordonnées ne lui sont transmises qu’en ouvrant ce lien.
+
+Ce prototype ne retrouve pas un appareil déjà égaré, éteint, hors ligne, réinitialisé ou dont la page est fermée ; il n’exécute aucun suivi en arrière-plan. Il ne prouve pas l’identité physique de l’appareil désigné dans l’inventaire : activez le partage uniquement sur vos propres appareils ou avec le consentement explicite de leur propriétaire. Pour la localisation d’un appareil perdu, les fonctions natives du fabricant ou une future application mobile installée et autorisée restent nécessaires. Le démonstrateur n’active ni sonnerie, ni micro, ni caméra à distance.

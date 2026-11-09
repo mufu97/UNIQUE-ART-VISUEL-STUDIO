@@ -96,7 +96,9 @@
             <a href="#apropos" data-section="apropos">Le studio</a>
             <a href="#investisseurs" data-section="investisseurs">Investisseurs</a>
             <a href="#contact" data-section="contact">Contact</a>
-            <button class="admin-link" style="display:none;" onclick="ouvrirConnexion()">Administration</button>
+            <a href="/appareils.html">Mes appareils</a>
+            <a href="/assistance-appareils.html">Assistance appareils</a>
+            <button class="admin-link" type="button" onclick="ouvrirConnexion()">Administration</button>
         </nav>
 
         <button id="themeToggle" class="theme-toggle" type="button" aria-label="Activer le thème sombre" title="Changer de thème">
@@ -165,7 +167,7 @@
             </div>
 
             <p id="assistantVoiceStatus" class="assistant-voice-status" role="status" aria-live="polite"></p>
-            <p class="assistant-disclaimer">Vos notes restent dans ce navigateur. Les questions et extraits sont transmis au fournisseur IA configuré. La dictée est transcrite localement par l’application Assistant personnel Windows ; le micro reste actif jusqu’à l’arrêt, tolère les pauses de 3 à 4 secondes et peut attendre jusqu’à 5 minutes le début de la parole. Seul le texte transcrit est envoyé à l’IA.</p>
+            <p class="assistant-disclaimer">Vos notes restent dans ce navigateur. Les questions et extraits sont transmis au fournisseur IA configuré. La dictée nécessite l’autorisation du microphone et un navigateur compatible. Le service de reconnaissance vocale du navigateur peut transmettre l’audio à son propre fournisseur ; seul le texte transcrit est envoyé à l’assistant du studio.</p>
 
             <form id="assistantForm" class="assistant-form">
                 <button id="assistantMic" class="assistant-tool-button" type="button"
@@ -1019,7 +1021,7 @@
             <button class="close-button" onclick="fermerConnexion()" aria-label="Fermer">×</button>
             <p class="sur-titre">UNIQUE ART VISUEL STUDIO</p>
             <h2>Espace administrateur</h2>
-            <p>Saisissez le mot de passe d'administration (Studio 17).</p>
+            <p>Saisissez la valeur de <code>ADMIN_API_KEY</code> définie dans votre fichier <code>.env</code>.</p>
 
             <form onsubmit="event.preventDefault(); connexionAdmin();" style="margin-top: 20px;">
                 <input type="password" id="motDePasse" placeholder="Code d'accès" autocomplete="current-password"
@@ -1092,7 +1094,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20261022-longer-voice-v6"></script>
+    <script src="script.js?v=20261028-browser-speech-v1"></script>
 </body>
 
 </html>

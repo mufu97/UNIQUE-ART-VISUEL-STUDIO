@@ -142,13 +142,15 @@ let assistantEnCours = false;
 let discussionsAssistant = [];
 let discussionAssistantActive = null;
 let dicteeLocaleActive = false;
-let dicteeLocaleCursor = -1;
-let dicteeLocalePollTimer = null;
 let dicteeLocaleFinale = "";
 let dicteeLocaleIntermediaire = "";
 let dicteeLocaleTexteInitial = "";
+let reconnaissanceVocaleNavigateur = null;
+let dicteeArretEnCours = false;
+let dicteeErreur = "";
+let dicteeSilenceTimer = null;
+let dicteeArretResolver = null;
 let syntheseVocaleEnCours = false;
-const ASSISTANT_VOICE_BRIDGE = "http://127.0.0.1:43197";
 
 function creerDiscussionAssistant() {
     const date = new Date().toISOString();
@@ -363,88 +365,147 @@ function afficherTranscriptionDicteeLocale() {
     champ.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-async function lireEvenementsDicteeLocale() {
-    const statut = document.getElementById("assistantVoiceStatus");
-    try {
-        const response = await fetch(`${ASSISTANT_VOICE_BRIDGE}/speech/events?after=${dicteeLocaleCursor}`, {
-            cache: "no-store"
-        });
-        if (!response.ok) throw new Error(`HTTP_${response.status}`);
-        const donnees = await response.json();
-        for (const event of donnees.events || []) {
-            dicteeLocaleCursor = Math.max(dicteeLocaleCursor, event.id);
-            if (event.type === "interim") {
-                if (statut) statut.textContent = "Écoute Windows en cours…";
-            } else if (event.type === "final") {
-                if (statut) statut.textContent = "Voix reconnue localement. Continuez à parler ou appuyez sur le micro pour terminer.";
-            } else if (event.type === "ready") {
-                if (statut) statut.textContent = "Micro prêt. Parlez ; appuyez sur le bouton pour arrêter et envoyer le texte à l’IA.";
-            } else if (event.type === "error") {
-                throw new Error(event.message || "La reconnaissance vocale Windows a échoué.");
-            }
-        }
-        if (typeof donnees.transcript === "string") dicteeLocaleFinale = donnees.transcript;
-        if (typeof donnees.interimText === "string") dicteeLocaleIntermediaire = donnees.interimText;
-        afficherTranscriptionDicteeLocale();
-        if (donnees.ended) {
-            dicteeLocaleActive = false;
-            afficherEtatDicteeLocale(false, dicteeLocaleFinale
-                ? "Dictée terminée. Vérifiez le texte, puis envoyez votre question."
-                : "La reconnaissance vocale Windows s’est arrêtée sans transcription. Vérifiez la configuration vocale de Windows.");
-            return;
-        }
-        if (dicteeLocaleActive) dicteeLocalePollTimer = setTimeout(lireEvenementsDicteeLocale, 250);
-    } catch (error) {
-        dicteeLocaleActive = false;
-        clearTimeout(dicteeLocalePollTimer);
-        const message = error instanceof TypeError
-            ? "Impossible de joindre l’assistant vocal Windows. Démarrez l’application et vérifiez que le navigateur autorise la connexion locale."
-            : error.message;
-        afficherEtatDicteeLocale(false, message);
-        console.error("Connexion au service vocal Windows impossible:", error.message);
-    }
-}
-
-async function demarrerDicteeLocale() {
+function demarrerDicteeLocale() {
     if (!window.isSecureContext) {
-        afficherEtatDicteeLocale(false, "La dictée locale nécessite HTTPS ou une adresse localhost.");
+        afficherEtatDicteeLocale(false, "La dictée vocale nécessite HTTPS ou une adresse localhost.");
         return;
     }
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+        afficherEtatDicteeLocale(false, "La dictée vocale n’est pas prise en charge par ce navigateur. Essayez la dernière version de Chrome ou Microsoft Edge.");
+        return;
+    }
+
     const champ = document.getElementById("assistantInput");
-    dicteeLocaleActive = true;
-    dicteeLocaleCursor = -1;
     dicteeLocaleFinale = "";
     dicteeLocaleIntermediaire = "";
     dicteeLocaleTexteInitial = champ?.value.trim() || "";
-    afficherEtatDicteeLocale(true, "Connexion au microphone Windows…");
+    dicteeErreur = "";
+    dicteeArretEnCours = false;
+    dicteeLocaleActive = true;
+    const reconnaissance = new SpeechRecognitionAPI();
+    reconnaissanceVocaleNavigateur = reconnaissance;
+    reconnaissance.lang = "fr-FR";
+    reconnaissance.continuous = true;
+    reconnaissance.interimResults = true;
+    reconnaissance.maxAlternatives = 1;
+    afficherEtatDicteeLocale(true, "Demande d’accès au microphone…");
+
+    reconnaissance.onstart = () => {
+        afficherEtatDicteeLocale(true, "Écoute active. Parlez ; appuyez sur le micro pour terminer et envoyer votre question.");
+        clearTimeout(dicteeSilenceTimer);
+        dicteeSilenceTimer = setTimeout(() => {
+            void arreterDicteeLocale(
+                dicteeLocaleFinale || dicteeLocaleIntermediaire
+                    ? "Dictée arrêtée après une longue pause. Vérifiez le texte, puis envoyez votre question."
+                    : "Aucune parole détectée après 5 minutes. Vérifiez l’autorisation du microphone, puis réessayez."
+            );
+        }, 5 * 60 * 1000);
+    };
+
+    reconnaissance.onresult = event => {
+        dicteeLocaleFinale = "";
+        dicteeLocaleIntermediaire = "";
+        for (let index = 0; index < event.results.length; index += 1) {
+            const result = event.results[index];
+            const texte = result[0]?.transcript?.trim();
+            if (!texte) continue;
+            if (result.isFinal) dicteeLocaleFinale += `${dicteeLocaleFinale ? " " : ""}${texte}`;
+            else dicteeLocaleIntermediaire += `${dicteeLocaleIntermediaire ? " " : ""}${texte}`;
+        }
+        dicteeLocaleFinale = dicteeLocaleFinale.trim();
+        dicteeLocaleIntermediaire = dicteeLocaleIntermediaire.trim();
+        afficherTranscriptionDicteeLocale();
+        clearTimeout(dicteeSilenceTimer);
+        dicteeSilenceTimer = setTimeout(() => {
+            void arreterDicteeLocale(
+                "Dictée arrêtée après une longue pause. Vérifiez le texte, puis envoyez votre question."
+            );
+        }, 5 * 60 * 1000);
+        afficherEtatDicteeLocale(true, "Voix transcrite. Continuez à parler ou appuyez sur le micro pour envoyer la question.");
+    };
+
+    reconnaissance.onerror = event => {
+        const messages = {
+            "not-allowed": "Accès au microphone refusé. Autorisez le microphone pour ce site dans les paramètres du navigateur, puis réessayez.",
+            "service-not-allowed": "Le service de reconnaissance vocale est bloqué par le navigateur ou l’appareil.",
+            "audio-capture": "Aucun microphone n’est disponible. Vérifiez le branchement et les paramètres audio de Windows.",
+            "no-speech": "Aucune parole détectée. Vérifiez le microphone et réessayez.",
+            "network": "Le service de reconnaissance vocale nécessite une connexion réseau. Vérifiez votre connexion, puis réessayez.",
+            "language-not-supported": "La reconnaissance vocale française n’est pas disponible dans ce navigateur."
+        };
+        dicteeErreur = messages[event.error] || `La reconnaissance vocale a échoué (${event.error || "erreur inconnue"}).`;
+        dicteeLocaleActive = false;
+        clearTimeout(dicteeSilenceTimer);
+        afficherEtatDicteeLocale(false, dicteeErreur);
+        try {
+            reconnaissance.stop();
+        } catch (error) {
+            console.warn("Arrêt après erreur de reconnaissance impossible:", error.message);
+        }
+    };
+
+    reconnaissance.onend = () => {
+        clearTimeout(dicteeSilenceTimer);
+        if (reconnaissanceVocaleNavigateur === reconnaissance) reconnaissanceVocaleNavigateur = null;
+        if (dicteeArretResolver) {
+            const resolve = dicteeArretResolver;
+            dicteeArretResolver = null;
+            resolve();
+        } else if (dicteeLocaleActive) {
+            dicteeLocaleActive = false;
+            afficherEtatDicteeLocale(false, dicteeLocaleFinale || dicteeLocaleIntermediaire
+                ? "La dictée s’est arrêtée. Vérifiez le texte, puis envoyez votre question."
+                : "La reconnaissance vocale s’est arrêtée sans transcription. Vérifiez l’autorisation du microphone et réessayez.");
+        }
+    };
+
     try {
-        const response = await fetch(`${ASSISTANT_VOICE_BRIDGE}/speech/start`, {
-            method: "POST",
-            cache: "no-store"
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || `HTTP_${response.status}`);
-        if (dicteeLocaleActive) dicteeLocalePollTimer = setTimeout(lireEvenementsDicteeLocale, 150);
+        reconnaissance.start();
     } catch (error) {
         dicteeLocaleActive = false;
-        const message = error.message.startsWith("HTTP_")
-            ? error.message.slice(5)
-            : "L’application Assistant personnel n’est pas démarrée ou cette origine n’est pas autorisée. Ouvrez l’application Windows et réessayez.";
-        afficherEtatDicteeLocale(false, message);
-        console.error("Démarrage de la dictée Windows impossible:", error.message);
+        reconnaissanceVocaleNavigateur = null;
+        afficherEtatDicteeLocale(false, error.name === "NotAllowedError"
+            ? "Accès au microphone refusé. Autorisez le microphone pour ce site dans les paramètres du navigateur, puis réessayez."
+            : `Impossible de démarrer la reconnaissance vocale : ${error.message}`);
+        console.error("Démarrage de la reconnaissance vocale impossible:", error.message);
     }
 }
 
 async function arreterDicteeLocale(message = "", envoyerTranscription = false) {
     const etaitActive = dicteeLocaleActive;
     dicteeLocaleActive = false;
-    clearTimeout(dicteeLocalePollTimer);
-    if (etaitActive) {
+    clearTimeout(dicteeSilenceTimer);
+    if (reconnaissanceVocaleNavigateur && etaitActive && !dicteeArretEnCours) {
+        dicteeArretEnCours = true;
         try {
-            await fetch(`${ASSISTANT_VOICE_BRIDGE}/speech/stop`, { method: "POST", cache: "no-store" });
-            await lireEvenementsDicteeLocale();
+            await new Promise(resolve => {
+                dicteeArretResolver = resolve;
+                const timeout = setTimeout(() => {
+                    if (dicteeArretResolver === resolve) {
+                        dicteeArretResolver = null;
+                        resolve();
+                    }
+                }, 2000);
+                const reconnaissance = reconnaissanceVocaleNavigateur;
+                const finEcoute = reconnaissance.onend;
+                reconnaissance.onend = () => {
+                    clearTimeout(timeout);
+                    if (typeof finEcoute === "function") finEcoute.call(reconnaissance);
+                };
+                try {
+                    reconnaissance.stop();
+                } catch (error) {
+                    clearTimeout(timeout);
+                    dicteeArretResolver = null;
+                    console.warn("Arrêt de la reconnaissance vocale impossible:", error.message);
+                    resolve();
+                }
+            });
         } catch (error) {
-            console.error("Arrêt du microphone Windows impossible:", error.message);
+            console.error("Arrêt de la reconnaissance vocale impossible:", error.message);
+        } finally {
+            dicteeArretEnCours = false;
         }
     }
     const questionDictee = document.getElementById("assistantInput")?.value.trim() || "";
@@ -459,11 +520,11 @@ async function arreterDicteeLocale(message = "", envoyerTranscription = false) {
         traiterQuestionAssistant(questionDictee);
         return;
     }
-    afficherEtatDicteeLocale(false, message || (dicteeLocaleFinale
+    afficherEtatDicteeLocale(false, message || dicteeErreur || (dicteeLocaleFinale
         ? "Dictée terminée. Vérifiez le texte, puis envoyez votre question."
         : dicteeLocaleIntermediaire
             ? "Dictée arrêtée. Vérifiez le texte provisoire ci-dessus, puis envoyez votre question."
-            : "Dictée arrêtée. Aucune transcription reçue ; vérifiez le microphone et la reconnaissance vocale Windows."));
+            : "Dictée arrêtée. Aucune transcription reçue ; vérifiez l’autorisation et le fonctionnement du microphone."));
 }
 
 function initialiserCommandesVocales() {
@@ -471,17 +532,20 @@ function initialiserCommandesVocales() {
     const boutonLire = document.getElementById("assistantSpeak");
     const statut = document.getElementById("assistantVoiceStatus");
     if (boutonMicro) {
-        boutonMicro.title = "Dicter sans limite de durée jusqu’à l’arrêt ; les pauses de 3 à 4 secondes sont tolérées (application Assistant personnel requise)";
+        boutonMicro.title = "Dicter en français, puis appuyer de nouveau pour envoyer la question";
         if (!window.isSecureContext) {
             boutonMicro.disabled = true;
-            afficherEtatDicteeLocale(false, "La dictée locale nécessite HTTPS ou une adresse localhost.");
+            afficherEtatDicteeLocale(false, "La dictée vocale nécessite HTTPS ou une adresse localhost.");
+        } else if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) {
+            boutonMicro.disabled = true;
+            afficherEtatDicteeLocale(false, "La dictée vocale nécessite un navigateur compatible, comme Chrome ou Microsoft Edge.");
         }
         boutonMicro.addEventListener("click", () => {
             if (dicteeLocaleActive) void arreterDicteeLocale("", true);
-            else void demarrerDicteeLocale();
+            else demarrerDicteeLocale();
         });
         if (statut && !statut.textContent) {
-            statut.textContent = "Dictée locale Windows : démarrez l’application Assistant personnel avant d’utiliser le micro.";
+            statut.textContent = "Dictée française : autorisez le microphone de votre navigateur pour commencer.";
         }
     }
 

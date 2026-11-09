@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f4ef">
+    <meta name="description" content="Accompagnement du studio pour préparer un appareil et suivre les démarches officielles après une perte.">
+    <title>Assistance appareils — Unique Art Visuel Studio</title>
+    <link rel="stylesheet" href="assistance-appareils.css?v=20261023-v2">
+    <script src="assistance-appareils.js?v=20261023-v2" defer></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/" aria-label="Retour à Unique Art Visuel Studio">
+            <span class="brand-icon" aria-hidden="true">U</span>
+            <span>UNIQUE ART VISUEL STUDIO<small>ASSISTANCE APPAREILS</small></span>
+        </a>
+        <nav aria-label="Navigation">
+            <a href="/">Accueil</a>
+            <a href="/appareils.html">Mon inventaire</a>
+        </nav>
+    </header>
+
+    <main class="page-shell">
+        <section class="hero">
+            <div>
+                <p class="eyebrow">UN ACCOMPAGNEMENT HUMAIN, DES DÉMARCHES OFFICIELLES</p>
+                <h1>Un appareil perdu ?<br><span>On vous guide.</span></h1>
+                <p class="hero-copy">Le studio vous accompagne pour préparer vos appareils ou suivre les démarches du fabricant et de votre opérateur. Vous gardez la main sur vos comptes et vos appareils.</p>
+                <a class="button button-primary" href="#demande">Demander un accompagnement <span aria-hidden="true">→</span></a>
+            </div>
+            <aside class="boundary-card">
+                <span aria-hidden="true">◎</span>
+                <h2>Votre sécurité d’abord</h2>
+                <p>Nous ne demandons jamais votre mot de passe, code de vérification ou code de récupération. Vous vous connectez vous-même aux services officiels.</p>
+            </aside>
+        </section>
+
+        <section class="limits" aria-label="Limites du service">
+            <strong>Ce service ne contourne pas les protections.</strong>
+            <p>Un numéro de téléphone, un e-mail ou un numéro de série ne suffit pas à localiser un appareil. Nous n’activons pas de micro ou de caméra à distance et ne garantissons pas de retrouver un appareil hors ligne, éteint ou réinitialisé.</p>
+        </section>
+
+        <section class="services">
+            <p class="eyebrow">COMMENT LE STUDIO PEUT VOUS AIDER</p>
+            <h2>Avant et après la perte</h2>
+            <div class="service-grid">
+                <article>
+                    <span class="service-number">01</span>
+                    <h3>Préparer vos appareils</h3>
+                    <p>Vérifier avec vous les options officielles de localisation, de verrouillage et de récupération de compte, tant que vous avez l’appareil en main.</p>
+                </article>
+                <article>
+                    <span class="service-number">02</span>
+                    <h3>Vous guider après une perte</h3>
+                    <p>Vous aider à ouvrir le bon service du fabricant, à suivre ses étapes et à préparer les informations à demander à votre opérateur.</p>
+                </article>
+                <article>
+                    <span class="service-number">03</span>
+                    <h3>Vous orienter vers les bons interlocuteurs</h3>
+                    <p>Vous aider à préparer les démarches auprès de l’opérateur, de l’assurance ou des autorités. Toute action sur le réseau dépend de l’opérateur et des procédures applicables.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="steps">
+            <div>
+                <p class="eyebrow">ACCOMPAGNEMENT TRANSPARENT</p>
+                <h2>Vous restez aux commandes</h2>
+            </div>
+            <ol>
+                <li><span>1</span><p>Vous envoyez une demande générale, sans identifiant sensible.</p></li>
+                <li><span>2</span><p>Le studio vous répond pour convenir de la suite et préciser les éventuels frais avant toute prestation.</p></li>
+                <li><span>3</span><p>Vous utilisez vous-même vos comptes et autorisez chaque étape. Ne transmettez jamais vos codes.</p></li>
+            </ol>
+        </section>
+
+        <section class="request-section" id="demande">
+            <div>
+                <p class="eyebrow">PREMIER CONTACT</p>
+                <h2>Décrivez votre besoin</h2>
+                <p>Indiquez seulement le type d’aide souhaité et une description générale. N’envoyez pas de numéro de série, IMEI, mot de passe, code SMS, document d’identité ni position précise par ce formulaire.</p>
+                <p class="direct-contact">Vous pouvez aussi appeler le studio au <a href="tel:+2250759875531">+225 07 59 87 55 31</a> ou écrire sur <a href="https://wa.me/2250759875531" target="_blank" rel="noopener noreferrer">WhatsApp</a>.</p>
+            </div>
+            <form id="assistanceForm">
+                <label for="requestName">Votre nom</label>
+                <input id="requestName" name="nom" type="text" maxlength="100" autocomplete="name" required>
+
+                <label for="requestEmail">Votre adresse e-mail</label>
+                <input id="requestEmail" name="email" type="email" maxlength="150" autocomplete="email" required>
+
+                <label for="requestType">Type d’accompagnement</label>
+                <select id="requestType" name="type" required>
+                    <option value="Prévention et configuration">Prévention et configuration</option>
+                    <option value="Appareil égaré">Appareil égaré</option>
+                    <option value="Appareil volé">Appareil volé</option>
+                    <option value="Récupération de compte via le fabricant">Aide à la récupération de compte</option>
+                    <option value="Autre">Autre</option>
+                </select>
+
+                <label for="requestMessage">Description générale</label>
+                <textarea id="requestMessage" name="message" rows="5" maxlength="2000" placeholder="Ex. Téléphone Android égaré, je souhaite être guidé pour les démarches officielles." required></textarea>
+                <p class="form-note">Ne saisissez aucun secret ni identifiant d’appareil. Votre demande sera envoyée au studio et enregistrée dans sa boîte de réception pour qu’il puisse vous répondre.</p>
+
+                <label class="consent">
+                    <input id="authorization" name="authorization" type="checkbox" required>
+                    <span>Je suis le propriétaire de l’appareil ou j’agis avec son autorisation, et je comprends que le studio ne contourne pas les protections des comptes.</span>
+                </label>
+
+                <input id="website" name="website" class="honeypot" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+                <p id="emailUnavailable" class="form-status error" role="status" hidden>Le formulaire e-mail est momentanément indisponible. Contactez le studio par <a href="https://wa.me/2250759875531" target="_blank" rel="noopener noreferrer">WhatsApp</a> ou par téléphone.</p>
+                <button class="button button-primary" type="submit">Envoyer ma demande</button>
+                <p id="formStatus" class="form-status" role="status" aria-live="polite" hidden></p>
+            </form>
+        </section>
+        <footer>© 2026 UNIQUE ART VISUEL STUDIO · <a href="/confidentialite.html">Confidentialité</a> · <a href="/">Retour au site</a></footer>
+    </main>
+</body>
+</html>

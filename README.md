@@ -20,6 +20,40 @@ La version à conserver est celle du dossier contenant `server.js`, `package.jso
 
 L’ancienne page isolée a été archivée hors du dépôt ; elle ne contenait pas ses dépendances `style.css`, `script.js` et `assets/`. Ne l’utilisez pas comme version de référence.
 
+### Lancer le site pour une présentation
+
+**Sur l’ordinateur de présentation (fonctionne sans Internet une fois installé)** : double-cliquez sur `Lancer le site.bat`. À la première utilisation, il installe les composants du site (connexion Internet requise cette fois-là), crée le fichier `.env` avec un mot de passe administrateur généré, l’affiche dans la fenêtre du serveur, puis ouvre `http://localhost:3000`. Faites ce premier lancement avant le jour de la présentation.
+
+**En ligne, avec une adresse publique HTTPS** : le fichier `render.yaml` décrit tout le déploiement sur Render (service web et base PostgreSQL). Dans Render, choisissez **New → Blueprint**, sélectionnez ce dépôt et validez. Le mot de passe administrateur (`ADMIN_API_KEY`) et le secret de session sont générés automatiquement ; vous les retrouvez dans l’onglet **Environment** du service. L’adresse publique du service sert d’adresse du site sans rien configurer. Avec l’offre gratuite, le service s’endort après quinze minutes sans visite et met environ une minute à se réveiller : ouvrez le site quelques minutes avant de présenter.
+
+**Fonctions qui demandent un compte chez un prestataire** — sans leurs clés, le site reste utilisable et affiche un avis à l’endroit concerné :
+
+| Fonction | Variables à renseigner | Où obtenir les clés |
+| --- | --- | --- |
+| Envoi d’e-mails (copie des messages de contact, confirmations, réponses aux clients, mot de passe oublié) | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO` | Compte Resend, avec un domaine d’envoi vérifié |
+| Paiement en ligne | `CINETPAY_API_KEY`, `CINETPAY_SITE_ID` | Compte marchand CinetPay |
+| Assistant éditorial | `AI_API_URL`, `AI_API_KEY`, `AI_MODEL` | Fournisseur compatible OpenAI, ou Ollama en local |
+
+`GET /api/health` indique lesquelles de ces fonctions sont actives.
+
+Sans service d’e-mail, rien n’est perdu : les messages du formulaire de contact et les demandes d’assistance arrivent dans la **Boîte de réception** de l’espace administrateur, et les demandes de l’espace d’échanges s’affichent pour le studio connecté, qui peut y **répondre**, les **supprimer** ou **bloquer un profil**. Le client retrouve la réponse dans son espace client.
+
+### Vérifier le site avant de publier
+
+```powershell
+npm test
+```
+
+Cette commande contrôle la syntaxe des scripts, puis lance le serveur sur un port libre avec un dossier de données temporaire (vos données locales ne sont pas touchées) et vérifie : l’état du service, l’existence de toutes les images et pages citées, le refus de servir les fichiers privés (`.env`, `data/store.json`, `server.js`…), le parcours client (inscription, connexion, session, déconnexion), la protection des routes d’administration et la suspension des essais de mot de passe en série. GitHub exécute les mêmes tests à chaque envoi (`.github/workflows/tests.yml`).
+
+### Mise à jour des feuilles de style et des scripts
+
+Il n’est plus nécessaire de modifier à la main le paramètre `?v=…` dans les pages : le serveur ajoute à chaque lien vers un fichier CSS ou JS une empreinte calculée sur son contenu. Dès qu’un fichier change, les visiteurs reçoivent la nouvelle version ; sinon leur navigateur garde la copie en cache.
+
+### Connexions protégées
+
+Après dix mots de passe erronés en quinze minutes depuis une même adresse, les connexions client et administrateur sont suspendues pendant quinze minutes (réponse `429`).
+
 ### Ouvrir le site sur un téléphone ou une tablette
 
 Le fichier `index.html` ne peut pas fournir seul les comptes, formulaires et échanges du site. Lancez plutôt `Lancer le site.bat` sur l’ordinateur, puis :

@@ -9,9 +9,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: ADMIN_API_KEY
-        sync: false
+        generateValue: true
       - key: CLIENT_SESSION_SECRET
-        sync: false
+        generateValue: true
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM

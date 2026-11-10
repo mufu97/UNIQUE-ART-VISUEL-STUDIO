@@ -26,9 +26,16 @@ function chargerVariablesLocales() {
 
 chargerVariablesLocales();
 
+// Sur Render, l'adresse publique du service est fournie automatiquement : elle sert
+// d'adresse du site tant que PUBLIC_BASE_URL n'est pas renseignée (domaine personnalisé).
+if (!String(process.env.PUBLIC_BASE_URL || "").trim() && process.env.RENDER_EXTERNAL_URL) {
+    process.env.PUBLIC_BASE_URL = process.env.RENDER_EXTERNAL_URL;
+}
+
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
+// DATA_DIR permet aux tests d'utiliser un dossier temporaire sans toucher aux données locales.
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const MAX_BODY_SIZE = 80 * 1024 * 1024;
@@ -53,6 +60,12 @@ const PASSWORD_RESET_RATE_LIMIT = 5;
 const requestCounts = new Map();
 const passwordResetRequestCounts = new Map();
 const assistantRequestCounts = new Map();
+const LOGIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_FAILURE_LIMIT = 10;
+const loginFailureCounts = new Map();
+const CONTACT_WINDOW_MS = 10 * 60 * 1000;
+const CONTACT_RATE_LIMIT = 5;
+const contactRequestCounts = new Map();
 const adminSessions = new Map();
 const databasePool = process.env.DATABASE_URL
     ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
@@ -183,6 +196,57 @@ function isRateLimited(request) {
 
     current.count += 1;
     return current.count > RATE_LIMIT;
+}
+
+// Protection contre les essais de mots de passe en série : après dix échecs en quinze minutes
+// depuis une même adresse, les connexions client et administrateur sont suspendues.
+function connexionsSuspendues(request) {
+    const entree = loginFailureCounts.get(getClientAddress(request));
+    if (!entree) return false;
+    if (Date.now() - entree.startedAt >= LOGIN_FAILURE_WINDOW_MS) {
+        loginFailureCounts.delete(getClientAddress(request));
+        return false;
+    }
+    return entree.count >= LOGIN_FAILURE_LIMIT;
+}
+
+function enregistrerEchecConnexion(request) {
+    const maintenant = Date.now();
+    const adresse = getClientAddress(request);
+    if (loginFailureCounts.size > 10000) {
+        for (const [adresseMemorisee, entree] of loginFailureCounts) {
+            if (maintenant - entree.startedAt >= LOGIN_FAILURE_WINDOW_MS) loginFailureCounts.delete(adresseMemorisee);
+        }
+    }
+    const entree = loginFailureCounts.get(adresse);
+    if (!entree || maintenant - entree.startedAt >= LOGIN_FAILURE_WINDOW_MS) {
+        loginFailureCounts.set(adresse, { startedAt: maintenant, count: 1 });
+        return;
+    }
+    entree.count += 1;
+}
+
+function refuserConnexionSuspendue(response) {
+    sendJson(response, 429, { error: "Trop de tentatives de connexion. Réessayez dans quinze minutes." }, { "Retry-After": "900" });
+}
+
+// Le formulaire de contact alimente la boîte de réception du studio : cinq messages par
+// tranche de dix minutes et par adresse suffisent à un visiteur et freinent le remplissage abusif.
+function limiterContactAtteint(request) {
+    const maintenant = Date.now();
+    const adresse = getClientAddress(request);
+    if (contactRequestCounts.size > 10000) {
+        for (const [adresseMemorisee, entree] of contactRequestCounts) {
+            if (maintenant - entree.startedAt >= CONTACT_WINDOW_MS) contactRequestCounts.delete(adresseMemorisee);
+        }
+    }
+    const fenetre = contactRequestCounts.get(adresse);
+    if (!fenetre || maintenant - fenetre.startedAt >= CONTACT_WINDOW_MS) {
+        contactRequestCounts.set(adresse, { startedAt: maintenant, count: 1 });
+        return false;
+    }
+    fenetre.count += 1;
+    return fenetre.count > CONTACT_RATE_LIMIT;
 }
 
 function limiterAssistantAtteint(request) {
@@ -391,7 +455,8 @@ async function obtenirContextePublicAssistant(question) {
 async function demanderAssistant(question, historique) {
     const configuration = configurationAssistant();
     if (!configuration) {
-        const error = new Error("L’assistant IA n’est pas configuré. Renseignez AI_API_URL et AI_MODEL côté serveur.");
+        console.warn("Assistant IA non configuré : renseignez AI_API_URL et AI_MODEL.");
+        const error = new Error("L’assistant du studio n’est pas encore disponible sur ce site. Pour toute question, utilisez l’espace d’échanges ou le formulaire de contact.");
         error.statusCode = 503;
         throw error;
     }
@@ -450,8 +515,6 @@ async function demanderAssistant(question, historique) {
 
 function readBody(request, maxBytes = MAX_BODY_SIZE) {
     return new Promise((resolve, reject) => {
-        let body = "";
-
         const declaredLength = Number(request.headers["content-length"] || 0);
         if (declaredLength > maxBytes) {
             reject(new Error("Payload trop volumineux"));
@@ -459,15 +522,27 @@ function readBody(request, maxBytes = MAX_BODY_SIZE) {
             return;
         }
 
+        // Les morceaux sont assemblés en octets avant décodage : un caractère accentué
+        // coupé entre deux morceaux reste intact, et la taille se compte sans tout relire.
+        const chunks = [];
+        let size = 0;
+        let rejected = false;
+
         request.on("data", (chunk) => {
-            body += chunk;
-            if (Buffer.byteLength(body, "utf8") > maxBytes) {
+            if (rejected) return;
+            size += chunk.length;
+            if (size > maxBytes) {
+                rejected = true;
                 reject(new Error("Payload trop volumineux"));
                 request.destroy();
+                return;
             }
+            chunks.push(chunk);
         });
 
         request.on("end", () => {
+            if (rejected) return;
+            const body = Buffer.concat(chunks).toString("utf8");
             try {
                 resolve(body ? JSON.parse(body) : {});
             } catch (error) {
@@ -1396,6 +1471,10 @@ async function handleApi(request, response, url) {
     }
 
     if (url.pathname === "/api/admin/session" && request.method === "POST") {
+        if (connexionsSuspendues(request)) {
+            refuserConnexionSuspendue(response);
+            return true;
+        }
         readBody(request).then((body) => {
             const fourni = String(body.password || "");
             const cle = String(process.env.ADMIN_API_KEY || "");
@@ -1406,6 +1485,7 @@ async function handleApi(request, response, url) {
             const attendu = Buffer.from(cle);
             const recu = Buffer.from(fourni);
             if (!fourni || attendu.length !== recu.length || !crypto.timingSafeEqual(attendu, recu)) {
+                enregistrerEchecConnexion(request);
                 sendJson(response, 401, { error: "Mot de passe administrateur incorrect." });
                 return;
             }
@@ -1604,11 +1684,12 @@ async function handleApi(request, response, url) {
                 sendJson(response, 400, { error: "Nom, adresse e-mail valide et message requis." });
                 return;
             }
-            const emailEnvoye = await envoyerEmailContact({ nom, email, message });
-            if (!emailEnvoye) {
-                sendJson(response, 503, { error: "L'envoi d'e-mail n'est pas configuré ou le service est indisponible." });
+            if (limiterContactAtteint(request)) {
+                sendJson(response, 429, { error: "Vous avez déjà envoyé plusieurs messages. Réessayez dans quelques minutes." }, { "Retry-After": "600" });
                 return;
             }
+            // Le message est d'abord conservé dans la boîte de réception du studio : il n'est
+            // jamais perdu, même quand le service d'e-mail est absent ou en panne.
             const store = await readStore();
             store.emailMessages = store.emailMessages || [];
             store.emailMessages.unshift({
@@ -1617,7 +1698,13 @@ async function handleApi(request, response, url) {
             });
             store.emailMessages = store.emailMessages.slice(0, 200);
             await writeStore(store);
-            sendJson(response, 201, { ok: true });
+            let emailEnvoye = false;
+            try {
+                emailEnvoye = await envoyerEmailContact({ nom, email, message });
+            } catch (error) {
+                console.error("E-mail de contact non envoyé:", error.message);
+            }
+            sendJson(response, 201, { ok: true, emailEnvoye });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
@@ -1628,6 +1715,7 @@ async function handleApi(request, response, url) {
             service: "unique-art-backend",
             providers: {
                 emailSending: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
+                contactInbox: true,
                 emailReceiving: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_WEBHOOK_SECRET),
                 passwordRecovery: Boolean(
                     process.env.RESEND_API_KEY && process.env.EMAIL_FROM && urlPubliqueReinitialisationMotDePasse()
@@ -2119,12 +2207,19 @@ async function handleApi(request, response, url) {
             } catch (error) {
                 console.error("E-mail de confirmation non envoyé:", error.message);
             }
-            sendJson(response, 201, { ok: true, emailEnvoye });
+            sendJson(response, 201, {
+                ok: true, emailEnvoye,
+                client: { id: client.id, nom: client.nom, email: client.email, telephone: client.telephone }
+            }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id, 0)) });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
     if (request.method === "POST" && ["/api/login", "/login"].includes(url.pathname)) {
+        if (connexionsSuspendues(request)) {
+            refuserConnexionSuspendue(response);
+            return true;
+        }
         readBody(request).then(async (body) => {
             const email = String(body.email || "").trim().toLowerCase();
             const motDePasse = String(body.motDePasse || "");
@@ -2138,6 +2233,7 @@ async function handleApi(request, response, url) {
             const client = store.clients.find((item) => item.email === email);
             const verification = client ? verifierMotDePasse(motDePasse, client.motDePasseHash) : null;
             if (!verification?.valide) {
+                enregistrerEchecConnexion(request);
                 sendJson(response, 401, { error: "Adresse e-mail ou mot de passe incorrect." });
                 return;
             }
@@ -2249,6 +2345,39 @@ async function handleApi(request, response, url) {
     return true;
 }
 
+const versionsRessources = new Map();
+
+// Empreinte du contenu d'un fichier CSS/JS public, recalculée seulement quand il change.
+function versionRessource(nomFichier) {
+    const chemin = path.join(ROOT, nomFichier);
+    let stats;
+    try {
+        stats = fs.statSync(chemin);
+    } catch {
+        return null;
+    }
+    const connue = versionsRessources.get(nomFichier);
+    if (connue && connue.mtimeMs === stats.mtimeMs && connue.size === stats.size) return connue.version;
+    const version = crypto.createHash("sha256").update(fs.readFileSync(chemin)).digest("hex").slice(0, 12);
+    versionsRessources.set(nomFichier, { mtimeMs: stats.mtimeMs, size: stats.size, version });
+    return version;
+}
+
+// Les CSS et JS sont servis avec un cache d'un an : chaque lien reçoit donc un paramètre
+// ?v= dérivé du contenu, pour que les visiteurs obtiennent la nouvelle version dès qu'un
+// fichier change, sans numéro à modifier à la main dans les pages.
+function htmlAvecVersions(filePath) {
+    const html = fs.readFileSync(filePath, "utf8");
+    return Buffer.from(html.replace(
+        /\b(href|src)="(\/?)([a-z0-9-]+\.(?:css|js))(?:\?[^"]*)?"/gi,
+        (lien, attribut, barre, nomFichier) => {
+            const nom = nomFichier.toLowerCase();
+            const version = PUBLIC_ROOT_FILES.has(nom) ? versionRessource(nom) : null;
+            return version ? `${attribut}="${barre}${nomFichier}?v=${version}"` : lien;
+        }
+    ), "utf8");
+}
+
 function serveFile(request, response, url) {
     let decodedPath;
     try {
@@ -2287,7 +2416,36 @@ function serveFile(request, response, url) {
     const compressible = [".html", ".js", ".css", ".svg"].includes(extension);
     const acceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(String(request.headers["accept-encoding"] || ""));
     if (compressible) headers.Vary = "Accept-Encoding";
-    if (compressible && acceptsGzip && fs.statSync(filePath).size > 1024) {
+
+    // Les pages HTML reçoivent les versions à jour de leurs feuilles de style et scripts.
+    const contenuHtml = extension === ".html" ? htmlAvecVersions(filePath) : null;
+    const stats = fs.statSync(filePath);
+    headers.ETag = contenuHtml
+        ? `"${crypto.createHash("sha256").update(contenuHtml).digest("hex").slice(0, 16)}"`
+        : `"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}"`;
+    if (String(request.headers["if-none-match"] || "").split(",").map((valeur) => valeur.trim().replace(/^W\//, "")).includes(headers.ETag)) {
+        response.writeHead(304, headers);
+        response.end();
+        return;
+    }
+    if (request.method === "HEAD") {
+        response.writeHead(200, headers);
+        response.end();
+        return;
+    }
+
+    if (contenuHtml) {
+        if (acceptsGzip && contenuHtml.length > 1024) {
+            headers["Content-Encoding"] = "gzip";
+            response.writeHead(200, headers);
+            response.end(zlib.gzipSync(contenuHtml, { level: 6 }));
+            return;
+        }
+        response.writeHead(200, headers);
+        response.end(contenuHtml);
+        return;
+    }
+    if (compressible && acceptsGzip && stats.size > 1024) {
         headers["Content-Encoding"] = "gzip";
         response.writeHead(200, headers);
         fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(response);
@@ -2333,6 +2491,12 @@ initialiserStockage().then(() => http.createServer((request, response) => {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "SAMEORIGIN");
     response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    if (IS_PRODUCTION) response.setHeader("Strict-Transport-Security", "max-age=15552000");
+    if (!["GET", "HEAD"].includes(request.method)) {
+        response.writeHead(405, { "Content-Type": "text/plain; charset=utf-8", Allow: "GET, HEAD" });
+        response.end("Méthode non autorisée");
+        return;
+    }
     serveFile(request, response, url);
 }).listen(PORT, "0.0.0.0", () => {
     console.log(`Unique Art Studio disponible sur http://localhost:${PORT}`);

@@ -22,7 +22,9 @@ async function actualiserDisponibiliteServices() {
     try {
         const etat = await appelerApi("/health");
         paiementEnLigneDisponible = Boolean(etat?.providers?.payments);
-        envoiEmailDisponible = Boolean(etat?.providers?.emailSending);
+        // Le formulaire de contact fonctionne dès que le serveur conserve les messages,
+        // même sans service d'e-mail : l'avis d'indisponibilité ne s'affiche plus dans ce cas.
+        envoiEmailDisponible = Boolean(etat?.providers?.emailSending || etat?.providers?.contactInbox);
         const noticePaiement = document.getElementById("paymentAvailabilityNotice");
         const noticeEmail = document.getElementById("emailAvailabilityNotice");
         if (noticePaiement) noticePaiement.hidden = paiementEnLigneDisponible;
@@ -42,7 +44,12 @@ async function actualiserDisponibiliteServices() {
 
 function commanderSurWhatsApp(produit, prix) {
     const message = `Bonjour Unique Art Visuel Studio, je souhaite commander : ${produit} (${formatPrix(prix)}).`;
-    window.location.assign(`https://wa.me/${NUMERO_WHATSAPP_STUDIO}?text=${encodeURIComponent(message)}`);
+    const lien = `https://wa.me/${NUMERO_WHATSAPP_STUDIO}?text=${encodeURIComponent(message)}`;
+    // WhatsApp s'ouvre dans un nouvel onglet pour que le visiteur ne quitte pas le site.
+    // Si le navigateur bloque l'ouverture, on revient à la navigation dans l'onglet courant.
+    const onglet = window.open(lien, "_blank");
+    if (onglet) onglet.opener = null;
+    else window.location.assign(lien);
 }
 
 let commandeSelectionnee = {
@@ -1604,6 +1611,22 @@ function fermerMenuMobile() {
     document.querySelector(".menu-button")?.setAttribute("aria-expanded", "false");
 }
 
+// Le menu déroulant se referme avec Échap ou d’un clic en dehors, comme tout menu natif.
+document.addEventListener("keydown", (evenement) => {
+    if (evenement.key !== "Escape") return;
+    const menu = document.getElementById("mainNav");
+    if (!menu?.classList.contains("active")) return;
+    fermerMenuMobile();
+    document.querySelector(".menu-button")?.focus();
+});
+
+document.addEventListener("click", (evenement) => {
+    const menu = document.getElementById("mainNav");
+    if (!menu?.classList.contains("active")) return;
+    if (evenement.target.closest("#mainNav, .menu-button")) return;
+    fermerMenuMobile();
+});
+
 function initialiserConfortVisuel() {
     const racine = document.documentElement;
     const boutonTheme = document.getElementById("themeToggle");
@@ -1785,6 +1808,8 @@ async function connexionAdmin(event) {
         if (erreur) erreur.textContent = "";
         fermerConnexion();
         afficherDashboard(true);
+        // Les demandes des clients sont réservées au studio : on les charge dès la connexion.
+        await initialiserDiscussions();
         await actualiserBoiteReception();
         await actualiserComptabilite();
         await actualiserSourcesAssistant();
@@ -1802,6 +1827,9 @@ async function deconnexionAdmin() {
         console.info("Session studio déjà fermée.");
     }
     localStorage.removeItem(ADMIN_KEY);
+    // Les demandes des clients ne doivent pas rester affichées ni mémorisées après la déconnexion.
+    saveDiscussions([]);
+    renderDiscussions([]);
 
     const dashboard =
         document.getElementById("adminDashboard");
@@ -2002,7 +2030,7 @@ async function envoyerContact(event) {
         formulaire.reset();
         if (status) {
             status.classList.add("success");
-            status.textContent = "Votre e-mail a bien été envoyé au studio. Merci !";
+            status.textContent = "Votre message a bien été transmis au studio. Merci !";
         }
     } catch (error) {
         if (status) {
@@ -2306,6 +2334,42 @@ function saveDiscussions(discussions) {
 }
 
 
+// Bouton « Traduire » placé sous un message : traduit dans la langue choisie par le visiteur.
+function ajouterControleTraduction(conteneur, texteOriginal) {
+    const outils = document.createElement("div");
+    outils.className = "translation-message-tools";
+
+    const bouton = document.createElement("button");
+    bouton.type = "button";
+    bouton.className = "translate-button";
+    bouton.textContent = "Traduire";
+
+    const resultat = document.createElement("p");
+    resultat.className = "translation-result";
+    resultat.setAttribute("aria-live", "polite");
+    resultat.hidden = true;
+
+    bouton.addEventListener("click", async () => {
+        const langue = document.getElementById("discussionLanguage")?.value || "en";
+        bouton.disabled = true;
+        bouton.textContent = "Traduction…";
+        try {
+            resultat.textContent = await traduireTexte(texteOriginal, langue);
+            bouton.textContent = "Actualiser la traduction";
+        } catch (error) {
+            resultat.textContent = "La traduction est momentanément indisponible. Réessayez dans un instant.";
+            bouton.textContent = "Réessayer";
+        } finally {
+            resultat.hidden = false;
+            bouton.disabled = false;
+        }
+    });
+
+    outils.append(bouton, resultat);
+    conteneur.appendChild(outils);
+}
+
+
 function renderDiscussions(discussions) {
     const liste =
         document.getElementById(
@@ -2325,38 +2389,147 @@ function renderDiscussions(discussions) {
         return;
     }
 
-    discussions.forEach(discussion => {
-        const element =
-            document.createElement("article");
+    const estAdmin = localStorage.getItem(ADMIN_KEY) === "true";
 
-        element.className =
-            "discussion-card";
+    // Les demandes les plus récentes apparaissent en premier.
+    [...discussions].reverse().forEach((discussion) => {
+        const element = document.createElement("article");
+        element.className = "discussion-item";
 
-        element.innerHTML = `
-            <h4>
-                ${echapperHTML(
-                    discussion.nom || discussion.name ||
-                    "Anonyme"
-                )}
-            </h4>
+        const entete = document.createElement("div");
+        entete.className = "discussion-header";
 
-            <p class="discussion-type">
-                ${echapperHTML(
-                    discussion.type ||
-                    "Discussion"
-                )}
-            </p>
+        const identite = document.createElement("div");
+        identite.className = "discussion-identity";
+        const nom = document.createElement("strong");
+        nom.textContent = discussion.nom || discussion.name || "Anonyme";
+        const type = document.createElement("span");
+        type.textContent = discussion.type || "Discussion";
+        identite.append(nom, type);
+        entete.appendChild(identite);
 
-            <p>
-                ${echapperHTML(
-                    discussion.message ||
-                    ""
-                )}
-            </p>
-        `;
+        const dateDemande = discussion.date ? new Date(discussion.date) : null;
+        if (dateDemande && !Number.isNaN(dateDemande.getTime())) {
+            const date = document.createElement("span");
+            date.className = "discussion-date";
+            date.textContent = dateDemande.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+            entete.appendChild(date);
+        }
+
+        const contenu = document.createElement("p");
+        contenu.className = "discussion-message";
+        contenu.textContent = discussion.message || "";
+
+        element.append(entete, contenu);
+
+        // L'adresse du client n'est transmise par le serveur qu'au studio connecté.
+        if (estAdmin && discussion.email) {
+            const contact = document.createElement("a");
+            contact.className = "discussion-contact";
+            contact.href = `mailto:${discussion.email}`;
+            contact.textContent = discussion.email;
+            element.appendChild(contact);
+        }
+
+        if (discussion.message) ajouterControleTraduction(element, discussion.message);
+
+        if (Array.isArray(discussion.replies) && discussion.replies.length) {
+            const reponses = document.createElement("div");
+            reponses.className = "discussion-replies";
+            discussion.replies.forEach((reponse) => {
+                const ligne = document.createElement("p");
+                ligne.className = "discussion-reply-item";
+                const auteur = document.createElement("strong");
+                auteur.textContent = "Studio : ";
+                ligne.append(auteur, document.createTextNode(reponse.message || ""));
+                reponses.appendChild(ligne);
+            });
+            element.appendChild(reponses);
+        }
+
+        if (estAdmin && discussion.id) {
+            const formulaire = document.createElement("form");
+            formulaire.className = "discussion-reply";
+            const champ = document.createElement("input");
+            champ.type = "text";
+            champ.maxLength = 2000;
+            champ.required = true;
+            champ.placeholder = "Répondre au client…";
+            champ.setAttribute("aria-label", `Répondre à ${nom.textContent}`);
+            const envoyer = document.createElement("button");
+            envoyer.type = "submit";
+            envoyer.textContent = "Répondre";
+            const etat = document.createElement("p");
+            etat.className = "status-message";
+            etat.setAttribute("aria-live", "polite");
+            formulaire.append(champ, envoyer);
+
+            formulaire.addEventListener("submit", async (evenement) => {
+                evenement.preventDefault();
+                const texte = champ.value.trim();
+                if (!texte) return;
+                envoyer.disabled = true;
+                try {
+                    const reponse = await appelerApi(`/discussions/${discussion.id}/reply`, {
+                        method: "POST",
+                        ...optionsAdmin(),
+                        body: JSON.stringify({ message: texte })
+                    });
+                    discussion.replies = [...(discussion.replies || []), reponse];
+                    saveDiscussions(discussions);
+                    renderDiscussions(discussions);
+                } catch (error) {
+                    // Rien n'est affiché comme envoyé tant que le serveur n'a pas enregistré la réponse.
+                    etat.classList.add("error");
+                    etat.textContent = error.message || "La réponse n’a pas pu être enregistrée. Réessayez.";
+                    envoyer.disabled = false;
+                }
+            });
+
+            const actions = document.createElement("div");
+            actions.className = "discussion-actions";
+
+            const supprimer = document.createElement("button");
+            supprimer.type = "button";
+            supprimer.textContent = "Supprimer";
+            supprimer.addEventListener("click", () => {
+                if (!window.confirm("Supprimer définitivement cette demande ?")) return;
+                modererDiscussion(discussion.id, "delete", etat);
+            });
+
+            const bloquer = document.createElement("button");
+            bloquer.type = "button";
+            bloquer.textContent = "Bloquer ce profil";
+            bloquer.addEventListener("click", () => {
+                if (!window.confirm(`Bloquer ${nom.textContent} et supprimer toutes ses demandes ?`)) return;
+                modererDiscussion(discussion.id, "block", etat);
+            });
+
+            actions.append(supprimer, bloquer);
+            element.append(formulaire, etat, actions);
+        }
 
         liste.appendChild(element);
     });
+}
+
+
+// Suppression d'une demande ou blocage d'un profil par le studio, puis rechargement de la liste.
+async function modererDiscussion(id, action, etat) {
+    try {
+        await appelerApi(action === "delete" ? `/discussions/${id}` : `/discussions/${id}/block`, {
+            method: action === "delete" ? "DELETE" : "POST",
+            ...optionsAdmin()
+        });
+        const restantes = await appelerApi("/discussions");
+        saveDiscussions(Array.isArray(restantes) ? restantes : []);
+        renderDiscussions(Array.isArray(restantes) ? restantes : []);
+    } catch (error) {
+        if (etat) {
+            etat.classList.add("error");
+            etat.textContent = error.message || "L’action n’a pas pu être effectuée. Réessayez.";
+        }
+    }
 }
 
 
@@ -2784,9 +2957,15 @@ async function creerCompteClient(event) {
             statut.classList.add("success");
             statut.textContent = resultat?.emailEnvoye
                 ? "Compte créé. Un e-mail de confirmation vous a été envoyé."
-                : "Compte créé. L’envoi de l’e-mail de confirmation est momentanément indisponible.";
+                : "Compte créé. Vous êtes connecté à votre espace client.";
         }
         event?.target?.reset();
+        // Le serveur ouvre la session à l'inscription : l'espace client s'affiche aussitôt.
+        if (resultat?.client) {
+            afficherSessionClient(resultat.client);
+            await chargerCommandesClient();
+            await chargerEchangesClient();
+        }
     } catch (error) {
         if (statut) {
             statut.classList.remove("success");

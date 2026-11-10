@@ -20,6 +20,22 @@ La version à conserver est celle du dossier contenant `server.js`, `package.jso
 
 L’ancienne page isolée a été archivée hors du dépôt ; elle ne contenait pas ses dépendances `style.css`, `script.js` et `assets/`. Ne l’utilisez pas comme version de référence.
 
+### Lancer le site pour une présentation
+
+**Sur l’ordinateur de présentation (fonctionne sans Internet une fois installé)** : double-cliquez sur `Lancer le site.bat`. À la première utilisation, il installe les composants du site (connexion Internet requise cette fois-là), crée le fichier `.env` avec un mot de passe administrateur généré, l’affiche dans la fenêtre du serveur, puis ouvre `http://localhost:3000`. Faites ce premier lancement avant le jour de la présentation.
+
+**En ligne, avec une adresse publique HTTPS** : le fichier `render.yaml` décrit tout le déploiement sur Render (service web et base PostgreSQL). Dans Render, choisissez **New → Blueprint**, sélectionnez ce dépôt et validez. Le mot de passe administrateur (`ADMIN_API_KEY`) et le secret de session sont générés automatiquement ; vous les retrouvez dans l’onglet **Environment** du service. L’adresse publique du service sert d’adresse du site sans rien configurer. Avec l’offre gratuite, le service s’endort après quinze minutes sans visite et met environ une minute à se réveiller : ouvrez le site quelques minutes avant de présenter.
+
+**Fonctions qui demandent un compte chez un prestataire** — sans leurs clés, le site reste utilisable et affiche un avis à l’endroit concerné :
+
+| Fonction | Variables à renseigner | Où obtenir les clés |
+| --- | --- | --- |
+| E-mails (contact, confirmations, mot de passe oublié) | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO` | Compte Resend, avec un domaine d’envoi vérifié |
+| Paiement en ligne | `CINETPAY_API_KEY`, `CINETPAY_SITE_ID` | Compte marchand CinetPay |
+| Assistant éditorial | `AI_API_URL`, `AI_API_KEY`, `AI_MODEL` | Fournisseur compatible OpenAI, ou Ollama en local |
+
+`GET /api/health` indique lesquelles de ces fonctions sont actives.
+
 ### Vérifier le site avant de publier
 
 ```powershell

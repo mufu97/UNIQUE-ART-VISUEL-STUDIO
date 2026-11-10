@@ -26,6 +26,12 @@ function chargerVariablesLocales() {
 
 chargerVariablesLocales();
 
+// Sur Render, l'adresse publique du service est fournie automatiquement : elle sert
+// d'adresse du site tant que PUBLIC_BASE_URL n'est pas renseignée (domaine personnalisé).
+if (!String(process.env.PUBLIC_BASE_URL || "").trim() && process.env.RENDER_EXTERNAL_URL) {
+    process.env.PUBLIC_BASE_URL = process.env.RENDER_EXTERNAL_URL;
+}
+
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 // DATA_DIR permet aux tests d'utiliser un dossier temporaire sans toucher aux données locales.

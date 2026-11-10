@@ -61,6 +61,12 @@ footer .legal-footer a:hover { color: var(--coral); }
     --muted: #68677a;
     --card-bg: #fffdf8;
     --card-border: #eadfce;
+    /* Constantes indépendantes du thème : texte et fonds des zones toujours sombres */
+    --on-dark: #f5f3f7;
+    --on-dark-muted: #c9c5d1;
+    --dark-surface: #14141b;
+    --dark-surface-soft: #20212b;
+    --surface-warm: #fff8eb;
 }
 
 * {
@@ -386,7 +392,7 @@ select {
 .logo {
     font-size: 22px;
     font-weight: bold;
-    color: var(--paper);
+    color: var(--on-dark);
     letter-spacing: 1px;
 }
 
@@ -406,7 +412,7 @@ nav {
 }
 
 nav a {
-    color: var(--paper);
+    color: var(--on-dark);
     text-decoration: none;
     font-weight: 600;
     font-size: 0.95rem;
@@ -503,7 +509,7 @@ nav a:hover {
     font-size: clamp(46px, 7vw, 92px);
     line-height: 0.96;
     margin-bottom: 26px;
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .hero h1 span {
@@ -547,8 +553,8 @@ nav a:hover {
 
 .secondaire {
     background: transparent;
-    border: 2px solid var(--paper);
-    color: var(--paper);
+    border: 2px solid var(--on-dark);
+    color: var(--on-dark);
 }
 
 .secondaire:hover {
@@ -601,7 +607,7 @@ nav a:hover {
     right: 0;
     padding: 24px 22px 20px;
     background: linear-gradient(180deg, transparent 0%, rgba(20, 21, 38, 0.85) 30%, rgba(20, 21, 38, 0.98) 100%);
-    color: var(--paper);
+    color: var(--on-dark);
     border-top: 1px solid rgba(241, 189, 88, 0.25);
     backdrop-filter: blur(4px);
 }
@@ -627,7 +633,7 @@ nav a:hover {
     margin: 8px 0 0;
     font-size: 0.88rem;
     font-style: italic;
-    color: var(--paper);
+    color: var(--on-dark);
     opacity: 0.95;
     border-left: 2px solid var(--coral);
     padding-left: 10px;
@@ -780,7 +786,7 @@ section {
 .shop-cover {
     height: 190px;
     background: linear-gradient(135deg, var(--teal), var(--ink-soft));
-    color: var(--paper);
+    color: var(--on-dark);
     border-radius: 12px;
     position: relative;
     overflow: hidden;
@@ -1100,7 +1106,17 @@ textarea {
 
 .secondary-button:hover {
     border-color: var(--ink);
-    background: #f0e6d6;
+    background: var(--paper-deep);
+}
+
+.admin-dashboard .secondary-button {
+    border-color: rgba(255, 248, 237, 0.45);
+    color: var(--on-dark);
+}
+
+.admin-dashboard .secondary-button:hover {
+    border-color: var(--on-dark);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .client-session {
@@ -1110,7 +1126,7 @@ textarea {
     margin-top: 20px;
     padding: 16px;
     border-left: 4px solid var(--sun);
-    background: #fff8e8;
+    background: var(--surface-warm);
     border-radius: 8px;
 }
 
@@ -1214,8 +1230,8 @@ textarea {
     gap: 18px;
     margin-bottom: 24px;
     padding: 18px 22px;
-    background: #fff8eb;
-    border: 1px solid #ebd9be;
+    background: var(--surface-warm);
+    border: 1px solid var(--surface-border);
     border-left: 5px solid var(--coral);
     border-radius: 16px;
     box-shadow: 0 6px 18px rgba(65, 49, 39, 0.05);
@@ -1251,9 +1267,9 @@ textarea {
     display: grid;
     gap: 7px;
     padding: 14px;
-    border: 1px solid #eadfce;
+    border: 1px solid var(--surface-border);
     border-radius: 12px;
-    background: #fff7e9;
+    background: var(--surface-warm);
     margin-bottom: 18px;
 }
 
@@ -1275,7 +1291,7 @@ textarea {
 }
 
 .discussion-item {
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--card-border);
     padding: 18px;
     border-radius: 12px;
@@ -1356,7 +1372,7 @@ textarea {
     margin: 0;
     padding: 10px 12px;
     border-left: 3px solid var(--sun);
-    background: #fff7e9;
+    background: var(--surface-warm);
     color: var(--ink);
     line-height: 1.5;
     border-radius: 6px;
@@ -1652,6 +1668,15 @@ textarea {
     font-size: 1.6rem;
 }
 
+/* Une adresse e-mail longue doit pouvoir passer à la ligne au lieu de sortir de la carte. */
+.contact-item > div {
+    min-width: 0;
+}
+
+.contact-item a {
+    overflow-wrap: anywhere;
+}
+
 .contact-item strong {
     display: block;
     margin-bottom: 4px;
@@ -1691,8 +1716,8 @@ textarea {
 
 .admin-dashboard {
     display: none;
-    background: var(--ink);
-    color: var(--paper);
+    background: var(--dark-surface);
+    color: var(--on-dark);
     border-top: 3px solid var(--coral);
     border-bottom: 3px solid var(--coral);
 }
@@ -1707,7 +1732,7 @@ textarea {
 
 .admin-dashboard .section-title h2,
 .admin-dashboard .section-title p:last-child {
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .admin-role-banner {
@@ -1730,7 +1755,7 @@ textarea {
     justify-content: center;
     border-radius: 50%;
     background: var(--sun);
-    color: var(--ink);
+    color: var(--dark-surface);
     font-size: 1.6rem;
     flex-shrink: 0;
 }
@@ -1758,7 +1783,7 @@ textarea {
     padding: 22px;
     border: 1px solid rgba(255, 248, 237, 0.16);
     border-radius: 18px;
-    color: var(--paper);
+    color: var(--on-dark);
     text-align: left;
     cursor: pointer;
     transition: transform 0.2s ease, border-color 0.2s ease;
@@ -1821,16 +1846,16 @@ textarea {
 }
 
 .admin-dashboard .news-form {
-    background: var(--ink-soft);
+    background: var(--dark-surface-soft);
     border-color: rgba(255, 248, 237, 0.2);
-    color: var(--paper);
+    color: var(--on-dark);
     border-radius: 18px;
     padding: 26px;
     margin-bottom: 30px;
 }
 
 .admin-dashboard .news-form h3 {
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .admin-dashboard .news-form input,
@@ -1850,7 +1875,7 @@ textarea {
 
 .stat-card {
     border: 1px solid rgba(255, 248, 237, 0.2);
-    background: var(--ink-soft);
+    background: var(--dark-surface-soft);
     padding: 25px;
     border-radius: 16px;
     text-align: center;
@@ -1888,7 +1913,7 @@ textarea {
 }
 
 .accounting-heading h3 {
-    color: var(--paper);
+    color: var(--on-dark);
     margin: 4px 0;
     font-size: 1.5rem;
 }
@@ -1933,7 +1958,7 @@ textarea {
 
 .accounting-metric span {
     display: block;
-    color: var(--paper);
+    color: var(--on-dark);
     font-size: clamp(1.2rem, 2vw, 1.6rem);
     font-weight: bold;
 }
@@ -1953,7 +1978,7 @@ textarea {
 
 .accounting-lower-grid h4 {
     margin-bottom: 14px;
-    color: var(--paper);
+    color: var(--on-dark);
     font-size: 1rem;
 }
 
@@ -1986,7 +2011,7 @@ textarea {
 }
 
 .activity-item strong {
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .activity-item small,
@@ -2001,7 +2026,7 @@ textarea {
 .admin-inbox {
     margin: 30px 0;
     padding: 26px;
-    background: var(--ink-soft);
+    background: var(--dark-surface-soft);
     border: 1px solid rgba(255, 248, 237, 0.2);
     border-radius: 18px;
 }
@@ -2016,7 +2041,7 @@ textarea {
 .admin-inbox-heading h3 {
     margin: 0;
     font-size: 1.4rem;
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .admin-kicker {
@@ -2046,7 +2071,7 @@ textarea {
 }
 
 .admin-inbox-item-heading strong {
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .admin-inbox-item-heading span,
@@ -2164,7 +2189,7 @@ textarea {
     box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
     margin-bottom: 12px;
     display: none;
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .assistant-widget.open .assistant-panel {
@@ -2198,7 +2223,7 @@ textarea {
 .assistant-header strong {
     display: block;
     font-size: 0.95rem;
-    color: var(--paper);
+    color: var(--on-dark);
 }
 
 .assistant-header small {
@@ -2232,7 +2257,7 @@ textarea {
     border: 1px solid rgba(255, 255, 255, .28);
     border-radius: 8px;
     background: rgba(255, 255, 255, .06);
-    color: var(--paper);
+    color: var(--on-dark);
     cursor: pointer;
     font: inherit;
     font-size: .75rem;
@@ -2259,7 +2284,7 @@ textarea {
 
 .assistant-conversation-status,
 .assistant-voice-status {
-    color: var(--muted);
+    color: var(--on-dark-muted);
     font-size: .75rem;
 }
 
@@ -2299,7 +2324,7 @@ textarea {
     border: 1px solid transparent;
     border-radius: 7px;
     background: rgba(255, 255, 255, .06);
-    color: var(--paper);
+    color: var(--on-dark);
     text-align: left;
     overflow-wrap: anywhere;
     cursor: pointer;
@@ -2321,7 +2346,7 @@ textarea {
 
 .assistant-bot {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--paper);
+    color: var(--on-dark);
     align-self: flex-start;
 }
 
@@ -2341,7 +2366,7 @@ textarea {
 .assistant-chip {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--paper);
+    color: var(--on-dark);
     border-radius: 999px;
     padding: 6px 12px;
     cursor: pointer;
@@ -2425,7 +2450,7 @@ textarea {
     border: 1px solid rgba(255, 255, 255, .2);
     border-radius: 8px;
     background: transparent;
-    color: var(--paper);
+    color: var(--on-dark);
     cursor: pointer;
     font: inherit;
     font-size: .8rem;
@@ -2455,7 +2480,7 @@ textarea {
 .assistant-disclaimer {
     margin: 0;
     padding: 0 16px 12px;
-    color: var(--muted);
+    color: var(--on-dark-muted);
     font-size: .72rem;
     line-height: 1.4;
 }
@@ -2573,7 +2598,7 @@ textarea {
     max-width: 600px;
     max-height: 90vh;
     overflow-y: auto;
-    background: #fff;
+    background: var(--surface);
     color: var(--ink);
     border-radius: 20px;
     padding: 36px 32px;
@@ -2603,9 +2628,9 @@ textarea {
     border: 2px dashed #bbb;
     border-radius: 12px;
     cursor: pointer;
-    color: #888;
+    color: var(--muted);
     overflow: hidden;
-    background: #fafafa;
+    background: var(--paper-deep);
 }
 
 .upload-area:hover {
@@ -2630,9 +2655,9 @@ textarea {
 .video-upload-box {
     margin: 16px 0;
     padding: 16px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--surface-border);
     border-radius: 12px;
-    background: #fafafa;
+    background: var(--paper-deep);
 }
 
 .media-choice-label,
@@ -2715,7 +2740,7 @@ textarea {
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: var(--ink);
+    background: #20213d;
 }
 
 .person-head::before {
@@ -2741,7 +2766,7 @@ textarea {
     width: 26px;
     height: 6px;
     border-radius: 8px;
-    background: var(--ink);
+    background: #20213d;
 }
 
 .person-arm-left {
@@ -2759,7 +2784,7 @@ textarea {
     width: 7px;
     height: 16px;
     border-radius: 6px;
-    background: var(--ink);
+    background: #20213d;
 }
 
 .person-leg-left {
@@ -2811,8 +2836,8 @@ footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--ink);
-    color: var(--paper);
+    background: var(--dark-surface);
+    color: var(--on-dark);
     border-top: 5px solid var(--sun);
 }
 
@@ -2986,6 +3011,7 @@ body { background-color: var(--page-bg); transition: background-color .25s ease,
     --page-bg: #101116;
     --surface: #191a22;
     --surface-border: #34343e;
+    --surface-warm: #23212b;
 }
 
 :root[data-theme="dark"] {
@@ -3004,6 +3030,7 @@ body { background-color: var(--page-bg); transition: background-color .25s ease,
     --page-bg: #101116;
     --surface: #191a22;
     --surface-border: #34343e;
+    --surface-warm: #23212b;
 }
 
 :root[data-theme="light"] {
@@ -3022,6 +3049,7 @@ body { background-color: var(--page-bg); transition: background-color .25s ease,
     --page-bg: #f4f1f5;
     --surface: #fff;
     --surface-border: #d9d2df;
+    --surface-warm: #fff8eb;
 }
 
 body {
@@ -3447,6 +3475,7 @@ footer { border-top: 1px solid var(--coral); background: #0b0c10; }
 
 /* Agrandissement pendant l’appui : souris, écran tactile et clavier */
 .press-zoom-hint { margin: 8px 0 0; color: #aeb7c2; font-size: .82rem; line-height: 1.5; }
+.oeuvres .press-zoom-hint { color: #b3175f; }
 .press-zoomable { cursor: zoom-in; touch-action: pan-y; -webkit-user-drag: none; user-select: none; }
 .press-zoomable.is-press-zoomed { cursor: zoom-out; }
 .press-zoom-overlay {
@@ -3578,7 +3607,7 @@ footer { border-top: 1px solid var(--coral); background: #0b0c10; }
     border: 1px solid rgba(255, 184, 74, .4);
     border-radius: 16px;
     background: rgba(255, 184, 74, .09);
-    color: var(--text, #f5f1eb);
+    color: var(--ink);
     line-height: 1.65;
 }
 
@@ -3596,4 +3625,32 @@ footer { border-top: 1px solid var(--coral); background: #0b0c10; }
     .cinema-shot-one { opacity: .45; }
     .cinema-shot:not(.cinema-shot-one) { opacity: 0; }
     .cinema-shot img { animation: none; }
+}
+
+/* Navigation compacte : dix rubriques ne tiennent pas sur une ligne en dessous de 1700 px.
+   On bascule donc sur le menu déroulant au lieu de laisser les boutons sortir de l’écran. */
+.navbar nav a { white-space: nowrap; }
+.navbar nav.active { max-height: calc(100vh - 90px); overflow-y: auto; overscroll-behavior: contain; }
+
+@media (min-width: 801px) and (max-width: 1699px) {
+    .navbar { gap: 10px; }
+    .navbar nav { display: none; }
+    .menu-button { display: block; }
+    .theme-toggle { margin-left: auto; }
+    .navbar nav.active {
+        position: absolute;
+        top: calc(100% + 1px);
+        right: 7%;
+        z-index: 2000;
+        display: grid;
+        gap: 0;
+        width: min(340px, 86vw);
+        padding: 10px 18px 14px;
+        border: 1px solid #34343e;
+        border-top: 0;
+        background: #14141b;
+        box-shadow: 0 18px 28px rgba(0, 0, 0, .35);
+    }
+    .navbar nav.active a { padding: 12px 8px; border-bottom: 1px solid #34343e; }
+    .navbar nav.active .admin-link { margin-top: 12px; padding: 10px 12px; }
 }

@@ -1604,6 +1604,22 @@ function fermerMenuMobile() {
     document.querySelector(".menu-button")?.setAttribute("aria-expanded", "false");
 }
 
+// Le menu déroulant se referme avec Échap ou d’un clic en dehors, comme tout menu natif.
+document.addEventListener("keydown", (evenement) => {
+    if (evenement.key !== "Escape") return;
+    const menu = document.getElementById("mainNav");
+    if (!menu?.classList.contains("active")) return;
+    fermerMenuMobile();
+    document.querySelector(".menu-button")?.focus();
+});
+
+document.addEventListener("click", (evenement) => {
+    const menu = document.getElementById("mainNav");
+    if (!menu?.classList.contains("active")) return;
+    if (evenement.target.closest("#mainNav, .menu-button")) return;
+    fermerMenuMobile();
+});
+
 function initialiserConfortVisuel() {
     const racine = document.documentElement;
     const boutonTheme = document.getElementById("themeToggle");

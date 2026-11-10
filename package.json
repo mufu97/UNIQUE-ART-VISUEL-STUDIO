@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node --check server.js && node --check script.js && node --check appareils.js && node --test"
   },
   "dependencies": {
     "pdf-parse": "^1.1.1",

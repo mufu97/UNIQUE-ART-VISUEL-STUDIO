@@ -20,6 +20,22 @@ La version à conserver est celle du dossier contenant `server.js`, `package.jso
 
 L’ancienne page isolée a été archivée hors du dépôt ; elle ne contenait pas ses dépendances `style.css`, `script.js` et `assets/`. Ne l’utilisez pas comme version de référence.
 
+### Vérifier le site avant de publier
+
+```powershell
+npm test
+```
+
+Cette commande contrôle la syntaxe des scripts, puis lance le serveur sur un port libre avec un dossier de données temporaire (vos données locales ne sont pas touchées) et vérifie : l’état du service, l’existence de toutes les images et pages citées, le refus de servir les fichiers privés (`.env`, `data/store.json`, `server.js`…), le parcours client (inscription, connexion, session, déconnexion), la protection des routes d’administration et la suspension des essais de mot de passe en série. GitHub exécute les mêmes tests à chaque envoi (`.github/workflows/tests.yml`).
+
+### Mise à jour des feuilles de style et des scripts
+
+Il n’est plus nécessaire de modifier à la main le paramètre `?v=…` dans les pages : le serveur ajoute à chaque lien vers un fichier CSS ou JS une empreinte calculée sur son contenu. Dès qu’un fichier change, les visiteurs reçoivent la nouvelle version ; sinon leur navigateur garde la copie en cache.
+
+### Connexions protégées
+
+Après dix mots de passe erronés en quinze minutes depuis une même adresse, les connexions client et administrateur sont suspendues pendant quinze minutes (réponse `429`).
+
 ### Ouvrir le site sur un téléphone ou une tablette
 
 Le fichier `index.html` ne peut pas fournir seul les comptes, formulaires et échanges du site. Lancez plutôt `Lancer le site.bat` sur l’ordinateur, puis :

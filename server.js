@@ -63,6 +63,9 @@ const assistantRequestCounts = new Map();
 const LOGIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_FAILURE_LIMIT = 10;
 const loginFailureCounts = new Map();
+const CONTACT_WINDOW_MS = 10 * 60 * 1000;
+const CONTACT_RATE_LIMIT = 5;
+const contactRequestCounts = new Map();
 const adminSessions = new Map();
 const databasePool = process.env.DATABASE_URL
     ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
@@ -225,6 +228,25 @@ function enregistrerEchecConnexion(request) {
 
 function refuserConnexionSuspendue(response) {
     sendJson(response, 429, { error: "Trop de tentatives de connexion. Réessayez dans quinze minutes." }, { "Retry-After": "900" });
+}
+
+// Le formulaire de contact alimente la boîte de réception du studio : cinq messages par
+// tranche de dix minutes et par adresse suffisent à un visiteur et freinent le remplissage abusif.
+function limiterContactAtteint(request) {
+    const maintenant = Date.now();
+    const adresse = getClientAddress(request);
+    if (contactRequestCounts.size > 10000) {
+        for (const [adresseMemorisee, entree] of contactRequestCounts) {
+            if (maintenant - entree.startedAt >= CONTACT_WINDOW_MS) contactRequestCounts.delete(adresseMemorisee);
+        }
+    }
+    const fenetre = contactRequestCounts.get(adresse);
+    if (!fenetre || maintenant - fenetre.startedAt >= CONTACT_WINDOW_MS) {
+        contactRequestCounts.set(adresse, { startedAt: maintenant, count: 1 });
+        return false;
+    }
+    fenetre.count += 1;
+    return fenetre.count > CONTACT_RATE_LIMIT;
 }
 
 function limiterAssistantAtteint(request) {
@@ -433,7 +455,8 @@ async function obtenirContextePublicAssistant(question) {
 async function demanderAssistant(question, historique) {
     const configuration = configurationAssistant();
     if (!configuration) {
-        const error = new Error("L’assistant IA n’est pas configuré. Renseignez AI_API_URL et AI_MODEL côté serveur.");
+        console.warn("Assistant IA non configuré : renseignez AI_API_URL et AI_MODEL.");
+        const error = new Error("L’assistant du studio n’est pas encore disponible sur ce site. Pour toute question, utilisez l’espace d’échanges ou le formulaire de contact.");
         error.statusCode = 503;
         throw error;
     }
@@ -1661,11 +1684,12 @@ async function handleApi(request, response, url) {
                 sendJson(response, 400, { error: "Nom, adresse e-mail valide et message requis." });
                 return;
             }
-            const emailEnvoye = await envoyerEmailContact({ nom, email, message });
-            if (!emailEnvoye) {
-                sendJson(response, 503, { error: "L'envoi d'e-mail n'est pas configuré ou le service est indisponible." });
+            if (limiterContactAtteint(request)) {
+                sendJson(response, 429, { error: "Vous avez déjà envoyé plusieurs messages. Réessayez dans quelques minutes." }, { "Retry-After": "600" });
                 return;
             }
+            // Le message est d'abord conservé dans la boîte de réception du studio : il n'est
+            // jamais perdu, même quand le service d'e-mail est absent ou en panne.
             const store = await readStore();
             store.emailMessages = store.emailMessages || [];
             store.emailMessages.unshift({
@@ -1674,7 +1698,13 @@ async function handleApi(request, response, url) {
             });
             store.emailMessages = store.emailMessages.slice(0, 200);
             await writeStore(store);
-            sendJson(response, 201, { ok: true });
+            let emailEnvoye = false;
+            try {
+                emailEnvoye = await envoyerEmailContact({ nom, email, message });
+            } catch (error) {
+                console.error("E-mail de contact non envoyé:", error.message);
+            }
+            sendJson(response, 201, { ok: true, emailEnvoye });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
@@ -1685,6 +1715,7 @@ async function handleApi(request, response, url) {
             service: "unique-art-backend",
             providers: {
                 emailSending: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
+                contactInbox: true,
                 emailReceiving: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_WEBHOOK_SECRET),
                 passwordRecovery: Boolean(
                     process.env.RESEND_API_KEY && process.env.EMAIL_FROM && urlPubliqueReinitialisationMotDePasse()
@@ -2176,7 +2207,10 @@ async function handleApi(request, response, url) {
             } catch (error) {
                 console.error("E-mail de confirmation non envoyé:", error.message);
             }
-            sendJson(response, 201, { ok: true, emailEnvoye });
+            sendJson(response, 201, {
+                ok: true, emailEnvoye,
+                client: { id: client.id, nom: client.nom, email: client.email, telephone: client.telephone }
+            }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id, 0)) });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }

@@ -155,6 +155,10 @@ test("parcours client : inscription, connexion, session, déconnexion", async ()
 
     const inscription = await fetch(`${base}/api/clients`, json(compte));
     assert.equal(inscription.status, 201);
+    // L'inscription ouvre directement la session du nouveau client.
+    const cookieInscription = inscription.headers.get("set-cookie").split(";")[0];
+    const sessionInscription = await fetch(`${base}/api/client/session`, { headers: { Cookie: cookieInscription } });
+    assert.equal(sessionInscription.status, 200);
 
     const doublon = await fetch(`${base}/api/clients`, json(compte));
     assert.equal(doublon.status, 409);
@@ -202,6 +206,58 @@ test("les routes d'administration exigent une session", async () => {
     const etat = await fetch(`${base}/api/admin/session`, { headers: { Cookie: cookie } });
     assert.equal((await etat.json()).authenticated, true);
     assert.equal((await fetch(`${base}/api/admin/inbox`, { headers: { Cookie: cookie } })).status, 200);
+});
+
+test("demandes des clients : privées, puis réponse et suppression par le studio", async () => {
+    const demande = { name: "Yao Bamba", email: "yao@example.com", language: "fr", type: "Demande de devis", message: "Un devis pour une bande dessinée, s'il vous plaît." };
+    const publication = await fetch(`${base}/api/discussions`, json(demande));
+    assert.equal(publication.status, 201);
+    const { id } = await publication.json();
+
+    // Un visiteur ne voit jamais les demandes des autres ; seul le studio connecté les lit.
+    assert.deepEqual(await (await fetch(`${base}/api/discussions`)).json(), []);
+    assert.equal((await fetch(`${base}/api/discussions/${id}/reply`, json({ message: "Sans droit" }))).status, 401);
+
+    const admin = (await fetch(`${base}/api/admin/session`, json({ password: CLE_ADMIN }))).headers.get("set-cookie").split(";")[0];
+    const liste = await (await fetch(`${base}/api/discussions`, { headers: { Cookie: admin } })).json();
+    assert.ok(liste.some((discussion) => discussion.id === id));
+
+    const reponse = await fetch(`${base}/api/discussions/${id}/reply`, { ...json({ message: "Voici notre proposition." }), headers: { "Content-Type": "application/json", Cookie: admin } });
+    assert.equal(reponse.status, 201);
+
+    // Le client retrouve la réponse du studio dans son espace.
+    await fetch(`${base}/api/clients`, json({ nom: "Yao Bamba", email: "yao@example.com", motDePasse: "mot-de-passe-de-yao", telephone: "+225 05 06 07 08" }));
+    const client = (await fetch(`${base}/api/login`, json({ email: "yao@example.com", motDePasse: "mot-de-passe-de-yao" }))).headers.get("set-cookie").split(";")[0];
+    const echanges = await (await fetch(`${base}/api/client/discussions`, { headers: { Cookie: client } })).json();
+    assert.equal(echanges[0].replies[0].message, "Voici notre proposition.");
+
+    const suppression = await fetch(`${base}/api/discussions/${id}`, { method: "DELETE", headers: { Cookie: admin } });
+    assert.equal(suppression.status, 200);
+    const apres = await (await fetch(`${base}/api/discussions`, { headers: { Cookie: admin } })).json();
+    assert.ok(!apres.some((discussion) => discussion.id === id));
+});
+
+test("un message de contact arrive dans la boîte du studio même sans service d'e-mail", async () => {
+    const envoi = await fetch(`${base}/api/contact`, json({ nom: "Awa Traoré", email: "awa@example.com", message: "Bonjour, j'aimerais une couverture illustrée." }));
+    assert.equal(envoi.status, 201);
+    assert.equal((await envoi.json()).emailEnvoye, false);
+
+    const admin = (await fetch(`${base}/api/admin/session`, json({ password: CLE_ADMIN }))).headers.get("set-cookie").split(";")[0];
+    const boite = await (await fetch(`${base}/api/admin/inbox`, { headers: { Cookie: admin } })).json();
+    assert.ok(boite.some((message) => message.nom === "Awa Traoré" && message.message.includes("couverture illustrée")));
+
+    // Le champ piège rempli par un robot ne crée aucun message.
+    const robot = await fetch(`${base}/api/contact`, json({ nom: "Robot", email: "robot@example.com", message: "spam", website: "http://spam.example" }));
+    assert.equal(robot.status, 200);
+    const boiteApres = await (await fetch(`${base}/api/admin/inbox`, { headers: { Cookie: admin } })).json();
+    assert.ok(!boiteApres.some((message) => message.nom === "Robot"));
+
+    // Au-delà de cinq messages en dix minutes, l'adresse est temporisée.
+    let dernier;
+    for (let essai = 0; essai < 5; essai += 1) {
+        dernier = await fetch(`${base}/api/contact`, json({ nom: "Awa Traoré", email: "awa@example.com", message: `Relance ${essai}` }));
+    }
+    assert.equal(dernier.status, 429);
 });
 
 // Ce test reste le dernier : il déclenche volontairement la suspension des connexions.

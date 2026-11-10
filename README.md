@@ -30,11 +30,13 @@ L’ancienne page isolée a été archivée hors du dépôt ; elle ne contenait 
 
 | Fonction | Variables à renseigner | Où obtenir les clés |
 | --- | --- | --- |
-| E-mails (contact, confirmations, mot de passe oublié) | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO` | Compte Resend, avec un domaine d’envoi vérifié |
+| Envoi d’e-mails (copie des messages de contact, confirmations, réponses aux clients, mot de passe oublié) | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO` | Compte Resend, avec un domaine d’envoi vérifié |
 | Paiement en ligne | `CINETPAY_API_KEY`, `CINETPAY_SITE_ID` | Compte marchand CinetPay |
 | Assistant éditorial | `AI_API_URL`, `AI_API_KEY`, `AI_MODEL` | Fournisseur compatible OpenAI, ou Ollama en local |
 
 `GET /api/health` indique lesquelles de ces fonctions sont actives.
+
+Sans service d’e-mail, rien n’est perdu : les messages du formulaire de contact et les demandes d’assistance arrivent dans la **Boîte de réception** de l’espace administrateur, et les demandes de l’espace d’échanges s’affichent pour le studio connecté, qui peut y **répondre**, les **supprimer** ou **bloquer un profil**. Le client retrouve la réponse dans son espace client.
 
 ### Vérifier le site avant de publier
 

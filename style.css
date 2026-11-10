@@ -1346,6 +1346,69 @@ textarea {
     color: var(--teal);
 }
 
+/* Outils du studio sous chaque demande : réponse, suppression, blocage */
+.discussion-contact {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--coral);
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+}
+
+.discussion-reply {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.discussion-reply input {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.discussion-reply button,
+.discussion-actions button {
+    border: 1px solid var(--surface-border);
+    border-radius: 999px;
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.discussion-reply button {
+    border-color: var(--coral);
+    background: var(--coral);
+    color: #fff;
+}
+
+.discussion-reply button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.discussion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.discussion-actions button:hover {
+    border-color: var(--coral);
+    color: var(--coral);
+}
+
+@media (max-width: 520px) {
+    .discussion-reply {
+        flex-direction: column;
+    }
+}
+
 .translation-message-tools {
     display: grid;
     gap: 8px;

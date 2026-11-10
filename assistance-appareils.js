@@ -12,7 +12,8 @@
             return response.json();
         })
         .then(health => {
-            if (health.providers && health.providers.emailSending === false) {
+            // Le studio reçoit la demande dans sa boîte de réception même sans service d’e-mail.
+            if (health.providers && health.providers.emailSending === false && !health.providers.contactInbox) {
                 submitButton.disabled = true;
                 emailUnavailable.hidden = false;
             }

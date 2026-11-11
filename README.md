@@ -101,7 +101,7 @@ Variables d’environnement du projet Vercel : `ADMIN_API_KEY`, `CLIENT_SESSION_
 
 **Une base PostgreSQL est obligatoire en ligne.** Sur Vercel, le disque n’est pas persistant : `data/store.json` n’est pas utilisable. Deux possibilités : coller dans `DATABASE_URL` la chaîne de connexion Supabase (**Connect** > **Transaction pooler**), ou créer une base depuis l’onglet **Storage** du projet Vercel (Neon, par exemple), qui ajoute la variable automatiquement. Redéployez ensuite. Tant que la base manque, le site s’affiche mais refuse les inscriptions, discussions et commandes ; `/api/health` indique alors `"storage": "non-configure"`.
 
-Limites propres à Vercel : une requête ne peut pas dépasser 4,5 Mo (images et manuscrits envoyés depuis l’administration) ; l’offre gratuite « Hobby » est réservée à un usage non commercial ; plusieurs instances du serveur peuvent tourner en même temps, si bien que le verrou des modifications et la limite de débit ne valent que par instance.
+Limites propres à Vercel : l’offre gratuite « Hobby » est réservée à un usage non commercial ; plusieurs instances du serveur peuvent tourner en même temps, si bien que le verrou des modifications et la limite de débit ne valent que par instance.
 
 Les sessions administrateur sont des cookies signés (12 heures), valables quelle que soit l’instance qui répond. Changer `ADMIN_API_KEY` déconnecte toutes les sessions administrateur.
 

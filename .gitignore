@@ -22,3 +22,8 @@ qwen-opencode.Modelfile
 .vscode/
 .agents/
 skills-lock.json
+
+# Hébergement
+.vercel/
+.env.*
+!.env.example

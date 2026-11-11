@@ -5,7 +5,7 @@
   "description": "Boutique et espace client de Unique Art Visuel Studio",
   "main": "server.js",
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node server.js",

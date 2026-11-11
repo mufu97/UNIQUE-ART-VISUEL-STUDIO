@@ -28,6 +28,9 @@ chargerVariablesLocales();
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
+// Les pages et images publiques sont dans public/ (servies directement par l'hébergeur en ligne).
+const PUBLIC_DIR = fs.existsSync(path.join(ROOT, "public")) ? path.join(ROOT, "public") : ROOT;
+const SUR_VERCEL = Boolean(process.env.VERCEL);
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -53,10 +56,13 @@ const PASSWORD_RESET_RATE_LIMIT = 5;
 const requestCounts = new Map();
 const passwordResetRequestCounts = new Map();
 const assistantRequestCounts = new Map();
-const adminSessions = new Map();
-const databasePool = process.env.DATABASE_URL
-    ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
+const databasePool = DATABASE_URL
+    ? new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false }, max: SUR_VERCEL ? 3 : 10 })
     : null;
+// En ligne (Vercel), le disque n'est pas persistant : sans base PostgreSQL, rien ne peut être enregistré.
+const STOCKAGE_DISPONIBLE = Boolean(databasePool) || !SUR_VERCEL;
+const STORE_VIDE = () => ({ clients: [], discussions: [], orders: [], creations: [], actualites: [] });
 const CLIENT_SESSION_SECRET = String(process.env.CLIENT_SESSION_SECRET || process.env.ADMIN_API_KEY || "").trim()
     || (IS_PRODUCTION ? "" : crypto.randomBytes(32).toString("hex"));
 
@@ -114,6 +120,7 @@ async function readStore() {
         return result.rows[0]?.payload || { clients: [], discussions: [], orders: [], creations: [], actualites: [] };
     }
 
+    if (!STOCKAGE_DISPONIBLE) return STORE_VIDE();
     ensureStore();
     return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
 }
@@ -127,6 +134,9 @@ async function writeStore(store) {
         return;
     }
 
+    if (!STOCKAGE_DISPONIBLE) {
+        throw new Error("L'enregistrement n'est pas encore disponible : la base de données du site n'est pas configurée.");
+    }
     const temporaryFile = `${DATA_FILE}.tmp`;
     fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2));
     fs.renameSync(temporaryFile, DATA_FILE);
@@ -161,17 +171,17 @@ async function mettreAJourCommande(commandeId, modification) {
 
 async function initialiserStockage() {
     if (!databasePool) {
-        ensureStore();
+        if (STOCKAGE_DISPONIBLE) ensureStore();
         return;
     }
 
     await databasePool.query("CREATE TABLE IF NOT EXISTS app_store (id integer PRIMARY KEY, payload jsonb NOT NULL)");
     const result = await databasePool.query("SELECT id FROM app_store WHERE id = 1");
     if (result.rowCount === 0) {
-        ensureStore();
+        const initial = fs.existsSync(DATA_FILE) ? fs.readFileSync(DATA_FILE, "utf8") : JSON.stringify(STORE_VIDE());
         await databasePool.query(
-            "INSERT INTO app_store (id, payload) VALUES (1, $1::jsonb)",
-            [fs.readFileSync(DATA_FILE, "utf8")]
+            "INSERT INTO app_store (id, payload) VALUES (1, $1::jsonb) ON CONFLICT (id) DO NOTHING",
+            [initial]
         );
     }
 }
@@ -950,14 +960,42 @@ async function verifierTransactionCinetPay(transactionId) {
     return response.json();
 }
 
+function cleSessionAdmin() {
+    const cle = String(process.env.ADMIN_API_KEY || "");
+    return cle ? crypto.createHmac("sha256", cle).update("unique-art-admin-session-v1").digest() : null;
+}
+
+function creerSessionAdmin() {
+    const charge = Buffer.from(JSON.stringify({
+        role: "admin",
+        nonce: crypto.randomBytes(16).toString("hex"),
+        expireLe: Date.now() + 12 * 60 * 60 * 1000
+    })).toString("base64url");
+    const signature = crypto.createHmac("sha256", cleSessionAdmin()).update(charge).digest("base64url");
+    return `${charge}.${signature}`;
+}
+
 function isAdminRequest(request) {
+    const cle = cleSessionAdmin();
+    if (!cle) return false;
     const cookie = String(request.headers.cookie || "").split(";").map((value) => value.trim())
         .find((value) => value.startsWith("unique_art_admin="));
-    const sessionId = cookie?.slice("unique_art_admin=".length);
-    const session = sessionId ? adminSessions.get(sessionId) : null;
-    if (session && session.expiresAt > Date.now()) return true;
-    if (sessionId) adminSessions.delete(sessionId);
-    return false;
+    const [charge, signature] = (cookie?.slice("unique_art_admin=".length) || "").split(".");
+    if (!charge || !signature) return false;
+    const attendue = crypto.createHmac("sha256", cle).update(charge).digest();
+    let recue;
+    try {
+        recue = Buffer.from(signature, "base64url");
+    } catch {
+        return false;
+    }
+    if (recue.length !== attendue.length || !crypto.timingSafeEqual(recue, attendue)) return false;
+    try {
+        const session = JSON.parse(Buffer.from(charge, "base64url").toString("utf8"));
+        return session.role === "admin" && session.expireLe > Date.now();
+    } catch {
+        return false;
+    }
 }
 
 async function handleApi(request, response, url) {
@@ -1496,11 +1534,7 @@ async function handleApi(request, response, url) {
                 sendJson(response, 401, { error: "Mot de passe administrateur incorrect." });
                 return;
             }
-            const sessionId = crypto.randomBytes(32).toString("hex");
-            adminSessions.set(sessionId, { expiresAt: Date.now() + 12 * 60 * 60 * 1000 });
-            for (const [id, session] of adminSessions) {
-                if (session.expiresAt <= Date.now()) adminSessions.delete(id);
-            }
+            const sessionId = creerSessionAdmin();
             response.writeHead(200, {
                 "Content-Type": "application/json; charset=utf-8",
                 "Cache-Control": "no-store",
@@ -1512,9 +1546,6 @@ async function handleApi(request, response, url) {
     }
 
     if (url.pathname === "/api/admin/session" && request.method === "DELETE") {
-        const cookie = String(request.headers.cookie || "").split(";").map((value) => value.trim())
-            .find((value) => value.startsWith("unique_art_admin="));
-        if (cookie) adminSessions.delete(cookie.slice("unique_art_admin=".length));
         response.writeHead(204, {
             "Cache-Control": "no-store",
             "Set-Cookie": `unique_art_admin=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0${IS_PRODUCTION ? "; Secure" : ""}`
@@ -1704,6 +1735,7 @@ async function handleApi(request, response, url) {
         sendJson(response, 200, {
             ok: true,
             service: "unique-art-backend",
+            storage: STOCKAGE_DISPONIBLE ? (databasePool ? "postgresql" : "fichier-local") : "non-configure",
             providers: {
                 emailSending: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
                 emailReceiving: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_WEBHOOK_SECRET),
@@ -2394,8 +2426,8 @@ function serveFile(request, response, url) {
     }
     const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
     const relativeRequestPath = requestedPath.replace(/^[/\\]+/, "").split(/[\\/]+/).join(path.sep);
-    const filePath = path.resolve(ROOT, relativeRequestPath);
-    const relativeFilePath = path.relative(ROOT, filePath);
+    const filePath = path.resolve(PUBLIC_DIR, relativeRequestPath);
+    const relativeFilePath = path.relative(PUBLIC_DIR, filePath);
     const relativeFilePathPortable = relativeFilePath.split(path.sep).join("/").toLowerCase();
     const isInsideRoot = relativeFilePath !== ".."
         && !relativeFilePath.startsWith(`..${path.sep}`)
@@ -2431,7 +2463,7 @@ function serveFile(request, response, url) {
     fs.createReadStream(filePath).pipe(response);
 }
 
-initialiserStockage().then(() => http.createServer((request, response) => {
+function traiterRequete(request, response) {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
     if (request.method === "OPTIONS") {
@@ -2468,7 +2500,30 @@ initialiserStockage().then(() => http.createServer((request, response) => {
     response.setHeader("X-Frame-Options", "SAMEORIGIN");
     response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     serveFile(request, response, url);
-}).listen(PORT, "0.0.0.0", () => {
+}
+
+let stockagePret = null;
+function preparerStockage() {
+    if (!stockagePret) {
+        stockagePret = initialiserStockage().catch((error) => {
+            stockagePret = null;
+            throw error;
+        });
+    }
+    return stockagePret;
+}
+
+// Point d'entrée pour un hébergement sans serveur (Vercel) : api/index.js exporte cette fonction.
+function gestionnaire(request, response) {
+    preparerStockage().then(() => traiterRequete(request, response)).catch((error) => {
+        console.error("Impossible d'initialiser le stockage:", error);
+        if (!response.headersSent) sendJson(response, 503, { error: "Le service est momentanément indisponible." });
+    });
+}
+
+module.exports = gestionnaire;
+
+if (require.main === module) preparerStockage().then(() => http.createServer(traiterRequete).listen(PORT, "0.0.0.0", () => {
     console.log(`Unique Art Studio disponible sur http://localhost:${PORT}`);
     const adressesReseau = Object.values(os.networkInterfaces())
         .flatMap((interfaces) => interfaces || [])

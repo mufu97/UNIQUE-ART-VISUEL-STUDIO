@@ -28,7 +28,7 @@ chargerVariablesLocales();
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const MAX_BODY_SIZE = 80 * 1024 * 1024;
@@ -130,6 +130,33 @@ async function writeStore(store) {
     const temporaryFile = `${DATA_FILE}.tmp`;
     fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2));
     fs.renameSync(temporaryFile, DATA_FILE);
+}
+
+// Toutes les modifications (lecture → changement → écriture) passent l'une après l'autre :
+// deux requêtes simultanées ne peuvent plus écraser leurs changements respectifs.
+// Ne jamais appeler un service réseau (e-mail, paiement…) ni avecVerrouStore à l'intérieur.
+let fileModificationsStore = Promise.resolve();
+function avecVerrouStore(operation) {
+    const resultat = fileModificationsStore.then(operation);
+    fileModificationsStore = resultat.catch(() => {});
+    return resultat;
+}
+
+// Identifiants numériques strictement croissants, même pour deux créations dans la même milliseconde.
+let dernierIdNumerique = 0;
+function nouvelIdNumerique() {
+    dernierIdNumerique = Math.max(Date.now(), dernierIdNumerique + 1);
+    return dernierIdNumerique;
+}
+
+async function mettreAJourCommande(commandeId, modification) {
+    return avecVerrouStore(async () => {
+        const store = await readStore();
+        const commande = (store.orders || []).find((item) => item.id === commandeId);
+        if (!commande) return null;
+        if (modification(commande) !== false) await writeStore(store);
+        return { ...commande };
+    });
 }
 
 async function initialiserStockage() {
@@ -309,6 +336,21 @@ function extrairePagesPdf(buffer) {
     });
 }
 
+function decouperPourTraduction(texte, longueurMax) {
+    const morceaux = [];
+    let reste = texte.trim();
+    while (reste.length > longueurMax) {
+        const extrait = reste.slice(0, longueurMax);
+        let coupure = Math.max(extrait.lastIndexOf(". "), extrait.lastIndexOf("! "), extrait.lastIndexOf("? "), extrait.lastIndexOf("\n"));
+        if (coupure < longueurMax / 2) coupure = extrait.lastIndexOf(" ");
+        if (coupure < longueurMax / 2) coupure = longueurMax - 1;
+        morceaux.push(reste.slice(0, coupure + 1).trim());
+        reste = reste.slice(coupure + 1).trim();
+    }
+    if (reste) morceaux.push(reste);
+    return morceaux;
+}
+
 function creerIndexDocument(texteParPage) {
     return texteParPage.flatMap(({ page, text }) => decouperEnPassages(text, page));
 }
@@ -450,7 +492,9 @@ async function demanderAssistant(question, historique) {
 
 function readBody(request, maxBytes = MAX_BODY_SIZE) {
     return new Promise((resolve, reject) => {
-        let body = "";
+        const morceaux = [];
+        let taille = 0;
+        let refuse = false;
 
         const declaredLength = Number(request.headers["content-length"] || 0);
         if (declaredLength > maxBytes) {
@@ -459,17 +503,27 @@ function readBody(request, maxBytes = MAX_BODY_SIZE) {
             return;
         }
 
+        // Les morceaux restent binaires jusqu'à la fin : un caractère accentué coupé
+        // entre deux morceaux n'est ainsi jamais corrompu.
         request.on("data", (chunk) => {
-            body += chunk;
-            if (Buffer.byteLength(body, "utf8") > maxBytes) {
+            if (refuse) return;
+            taille += chunk.length;
+            if (taille > maxBytes) {
+                refuse = true;
                 reject(new Error("Payload trop volumineux"));
                 request.destroy();
+                return;
             }
+            morceaux.push(chunk);
         });
 
         request.on("end", () => {
+            if (refuse) return;
+            const body = Buffer.concat(morceaux).toString("utf8");
             try {
-                resolve(body ? JSON.parse(body) : {});
+                const donnees = body ? JSON.parse(body) : {};
+                if (!donnees || typeof donnees !== "object" || Array.isArray(donnees)) throw new Error();
+                resolve(donnees);
             } catch (error) {
                 reject(new Error("JSON invalide"));
             }
@@ -523,38 +577,46 @@ function verifierMotDePasse(password, storedHash) {
     return { valide: false, ancienFormat: false };
 }
 
-function creerSessionClient(clientId, sessionVersion = 0) {
-    const charge = Buffer.from(JSON.stringify({
-        clientId,
-        sessionVersion,
-        expireLe: Date.now() + 7 * 24 * 60 * 60 * 1000
-    })).toString("base64url");
-    const signature = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(charge).digest("base64url");
+// Chaque jeton est signé pour un usage précis : un jeton d'invité au partage de position
+// ne peut jamais servir de session client, et inversement.
+const USAGE_SESSION_CLIENT = "session-client";
+const USAGE_PARTAGE_POSITION = "partage-position";
+
+function signerJeton(usage, donnees) {
+    const charge = Buffer.from(JSON.stringify({ ...donnees, usage })).toString("base64url");
+    const signature = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(`${usage}.${charge}`).digest("base64url");
     return `${charge}.${signature}`;
 }
 
-function lireSessionClient(request) {
+function lireJeton(request, nomCookie, usage) {
     const cookie = String(request.headers.cookie || "").split(";").map((value) => value.trim())
-        .find((value) => value.startsWith("unique_art_client="));
-    const token = cookie?.slice("unique_art_client=".length) || "";
-    const [charge, signature] = token.split(".");
-    if (!charge || !signature) return null;
+        .find((value) => value.startsWith(`${nomCookie}=`));
+    const token = cookie?.slice(nomCookie.length + 1) || "";
+    const [charge, signature, ...reste] = token.split(".");
+    if (!charge || !signature || reste.length) return null;
 
-    const signatureAttendue = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(charge).digest();
-    let signatureRecue;
-    try {
-        signatureRecue = Buffer.from(signature, "base64url");
-    } catch {
-        return null;
-    }
+    const signatureAttendue = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(`${usage}.${charge}`).digest();
+    const signatureRecue = Buffer.from(signature, "base64url");
     if (signatureRecue.length !== signatureAttendue.length || !crypto.timingSafeEqual(signatureRecue, signatureAttendue)) return null;
 
     try {
         const session = JSON.parse(Buffer.from(charge, "base64url").toString("utf8"));
-        return session.expireLe > Date.now() ? session : null;
+        return session && session.usage === usage && session.expireLe > Date.now() ? session : null;
     } catch {
         return null;
     }
+}
+
+function creerSessionClient(clientId, sessionVersion = 0) {
+    return signerJeton(USAGE_SESSION_CLIENT, {
+        clientId,
+        sessionVersion,
+        expireLe: Date.now() + 7 * 24 * 60 * 60 * 1000
+    });
+}
+
+function lireSessionClient(request) {
+    return lireJeton(request, "unique_art_client", USAGE_SESSION_CLIENT);
 }
 
 async function obtenirClientConnecte(request) {
@@ -575,27 +637,7 @@ function cookieSessionPartagePosition(token, maxAge = 3600) {
 }
 
 function lireSessionPartagePosition(request) {
-    const cookie = String(request.headers.cookie || "").split(";").map((value) => value.trim())
-        .find((value) => value.startsWith("unique_art_location_share="));
-    const token = cookie?.slice("unique_art_location_share=".length) || "";
-    const [charge, signature] = token.split(".");
-    if (!charge || !signature) return null;
-
-    const signatureAttendue = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(charge).digest();
-    let signatureRecue;
-    try {
-        signatureRecue = Buffer.from(signature, "base64url");
-    } catch {
-        return null;
-    }
-    if (signatureRecue.length !== signatureAttendue.length || !crypto.timingSafeEqual(signatureRecue, signatureAttendue)) return null;
-
-    try {
-        const session = JSON.parse(Buffer.from(charge, "base64url").toString("utf8"));
-        return session.expireLe > Date.now() ? session : null;
-    } catch {
-        return null;
-    }
+    return lireJeton(request, "unique_art_location_share", USAGE_PARTAGE_POSITION);
 }
 
 function limiterReinitialisationMotDePasseAtteint(request) {
@@ -718,7 +760,8 @@ async function envoyerEmailConfirmation(client) {
             to: [client.email],
             subject: "Votre compte Unique Art Visuel Studio est confirmé",
             html: `<p>Bonjour ${echapperEmail(client.nom)},</p><p>Votre compte client Unique Art Visuel Studio a bien été créé.</p><p>Vous pouvez maintenant vous connecter depuis votre espace client.</p><p>À bientôt,<br>Unique Art Visuel Studio</p>`
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
     });
 
     return response.ok;
@@ -743,7 +786,8 @@ async function envoyerEmailReponse(discussion, message) {
             to: [discussion.email],
             subject: "Le studio a répondu à votre message",
             html: `<p>Bonjour ${echapperEmail(discussion.name)},</p><p>Le studio Unique Art Visuel Studio a répondu à votre demande :</p><blockquote>${echapperEmail(message).replace(/\n/g, "<br>")}</blockquote><p>Connectez-vous à votre espace client pour retrouver l’échange.</p>`
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
     });
 
     return response.ok;
@@ -769,7 +813,8 @@ async function envoyerEmailContact(message) {
             subject: `Nouveau message du site — ${message.nom}`,
             text: `De : ${message.nom} <${message.email}>\n\n${message.message}`,
             html: `<p><strong>De :</strong> ${echapperEmail(message.nom)} &lt;${echapperEmail(message.email)}&gt;</p><p>${echapperEmail(message.message).replace(/\n/g, "<br>")}</p>`
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
     });
     return response.ok;
 }
@@ -787,7 +832,19 @@ async function envoyerEmailCommande(destinataire, sujet, corps) {
     return response.ok;
 }
 
-async function notifierCommandeConfirmee(commande, store) {
+// Les envois en cours, par commande : un même paiement signalé deux fois en même temps
+// (notification CinetPay + retour du client) ne déclenche pas deux e-mails.
+const notificationsCommandeEnCours = new Map();
+function notifierCommandeConfirmee(commande) {
+    if (notificationsCommandeEnCours.has(commande.id)) return notificationsCommandeEnCours.get(commande.id);
+    const envoi = envoyerNotificationsCommande(commande)
+        .catch((error) => console.error("Notification e-mail de commande différée:", error.message))
+        .finally(() => notificationsCommandeEnCours.delete(commande.id));
+    notificationsCommandeEnCours.set(commande.id, envoi);
+    return envoi;
+}
+
+async function envoyerNotificationsCommande(commande) {
     if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || commande.statut !== "confirmée") return;
     const produit = echapperEmail(commande.produit);
     const nom = echapperEmail(commande.nom);
@@ -797,30 +854,42 @@ async function notifierCommandeConfirmee(commande, store) {
         text: `Commande confirmée : ${commande.produit} (${montant})\nClient : ${commande.nom} <${commande.email}>\nRéférence : ${commande.id}\nDate : ${date}`,
         html: `<p>Commande <strong>${produit}</strong> confirmée pour ${montant}.</p><p>Client : ${nom} &lt;${echapperEmail(commande.email)}&gt;</p><p>Référence : ${echapperEmail(commande.id)} · ${date}</p>`
     };
-    let modifie = false;
-    try {
-        if (!commande.emailClientConfirme) {
-            commande.emailClientConfirme = await envoyerEmailCommande(
-                commande.email,
-                "Votre paiement est confirmé — Unique Art Visuel Studio",
-                { ...contenu, text: `Bonjour ${commande.nom},\n\n${contenu.text}\n\nMerci pour votre confiance.`, html: `<p>Bonjour ${nom},</p>${contenu.html}<p>Merci pour votre confiance. Le studio vous contactera pour la suite.</p>` }
-            );
-            modifie = commande.emailClientConfirme;
-            if (modifie) await writeStore(store);
-        }
-        if (!commande.emailStudioAlerte) {
-            commande.emailStudioAlerte = await envoyerEmailCommande(
-                process.env.EMAIL_TO || "dieudonnejeannde@gmail.com",
-                "Nouvelle commande payée — Unique Art Visuel Studio",
-                contenu
-            );
-            modifie = commande.emailStudioAlerte || modifie;
-            if (commande.emailStudioAlerte) await writeStore(store);
-        }
-    } catch (error) {
-        console.error("Notification e-mail de commande différée:", error.message);
-        if (modifie) await writeStore(store);
+    if (!commande.emailClientConfirme) {
+        const envoye = await envoyerEmailCommande(
+            commande.email,
+            "Votre paiement est confirmé — Unique Art Visuel Studio",
+            { ...contenu, text: `Bonjour ${commande.nom},\n\n${contenu.text}\n\nMerci pour votre confiance.`, html: `<p>Bonjour ${nom},</p>${contenu.html}<p>Merci pour votre confiance. Le studio vous contactera pour la suite.</p>` }
+        );
+        if (envoye) await mettreAJourCommande(commande.id, (item) => { item.emailClientConfirme = true; });
     }
+    if (!commande.emailStudioAlerte) {
+        const envoye = await envoyerEmailCommande(
+            process.env.EMAIL_TO || "dieudonnejeannde@gmail.com",
+            "Nouvelle commande payée — Unique Art Visuel Studio",
+            contenu
+        );
+        if (envoye) await mettreAJourCommande(commande.id, (item) => { item.emailStudioAlerte = true; });
+    }
+}
+
+// Applique le résultat vérifié auprès de CinetPay. Renvoie la commande à jour.
+function appliquerVerificationPaiement(commandeId, verified) {
+    const payment = verified?.data || {};
+    return mettreAJourCommande(commandeId, (order) => {
+        if (order.statut === "confirmée") return false;
+        if (verified?.code === "00" && payment.status === "ACCEPTED"
+            && Number(payment.amount) === Number(order.prix) && payment.currency === "XOF") {
+            order.statut = "confirmée";
+            order.methodePaiement = payment.payment_method || "CinetPay";
+            order.paiementConfirmeLe = payment.payment_date || new Date().toISOString();
+            return true;
+        }
+        if (["REFUSED", "CANCELLED", "EXPIRED"].includes(String(payment.status || "").toUpperCase())) {
+            order.statut = "paiement refusé";
+            return true;
+        }
+        return false;
+    });
 }
 
 function verifierSignatureResend(rawBody, request) {
@@ -926,14 +995,17 @@ async function handleApi(request, response, url) {
                 return;
             }
 
-            const store = await readStore();
-            const client = store.clients.find((item) => item.email === email);
-            if (client) {
-                const token = crypto.randomBytes(32).toString("base64url");
-                client.passwordResetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
-                client.passwordResetExpiresAt = Date.now() + 30 * 60 * 1000;
+            const token = crypto.randomBytes(32).toString("base64url");
+            const client = await avecVerrouStore(async () => {
+                const store = await readStore();
+                const compte = store.clients.find((item) => item.email === email);
+                if (!compte) return null;
+                compte.passwordResetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+                compte.passwordResetExpiresAt = Date.now() + 30 * 60 * 1000;
                 await writeStore(store);
-
+                return compte;
+            });
+            if (client) {
                 try {
                     await envoyerEmailReinitialisationMotDePasse(
                         client,
@@ -968,20 +1040,23 @@ async function handleApi(request, response, url) {
             }
 
             const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-            const store = await readStore();
-            const client = store.clients.find((item) => item.passwordResetTokenHash === tokenHash
-                && Number(item.passwordResetExpiresAt) > Date.now());
-            if (!client) {
-                sendJson(response, 400, { error: "Le lien de réinitialisation est invalide ou expiré. Demandez-en un nouveau." });
-                return;
-            }
+            const nouveauHash = hashPassword(motDePasse);
+            await avecVerrouStore(async () => {
+                const store = await readStore();
+                const client = store.clients.find((item) => item.passwordResetTokenHash === tokenHash
+                    && Number(item.passwordResetExpiresAt) > Date.now());
+                if (!client) {
+                    sendJson(response, 400, { error: "Le lien de réinitialisation est invalide ou expiré. Demandez-en un nouveau." });
+                    return;
+                }
 
-            client.motDePasseHash = hashPassword(motDePasse);
-            client.sessionVersion = (Number.isSafeInteger(client.sessionVersion) ? client.sessionVersion : 0) + 1;
-            delete client.passwordResetTokenHash;
-            delete client.passwordResetExpiresAt;
-            await writeStore(store);
-            sendJson(response, 200, { ok: true, message: "Votre mot de passe a été modifié. Vous pouvez vous connecter." });
+                client.motDePasseHash = nouveauHash;
+                client.sessionVersion = (Number.isSafeInteger(client.sessionVersion) ? client.sessionVersion : 0) + 1;
+                delete client.passwordResetTokenHash;
+                delete client.passwordResetExpiresAt;
+                await writeStore(store);
+                sendJson(response, 200, { ok: true, message: "Votre mot de passe a été modifié. Vous pouvez vous connecter." });
+            });
         }).catch((error) => {
             const status = error.message === "Payload trop volumineux" ? 413 : 400;
             sendJson(response, status, { error: status === 413 ? "La demande est trop volumineuse." : error.message });
@@ -1012,7 +1087,7 @@ async function handleApi(request, response, url) {
             return true;
         }
 
-        readBody(request, MAX_CLIENT_DEVICE_BODY_SIZE).then(async (body) => {
+        readBody(request, MAX_CLIENT_DEVICE_BODY_SIZE).then((body) => avecVerrouStore(async () => {
             const appareils = validerInventaireAppareils(body.appareils);
             if (!appareils) {
                 sendJson(response, 400, { error: "Inventaire invalide : vérifiez les champs et la limite de 100 appareils." });
@@ -1032,7 +1107,7 @@ async function handleApi(request, response, url) {
             clientActuel.appareils = appareils;
             await writeStore(store);
             sendJson(response, 200, { appareils });
-        }).catch((error) => {
+        })).catch((error) => {
             const status = error.message === "Payload trop volumineux" ? 413 : 400;
             sendJson(response, status, { error: status === 413 ? "L’inventaire dépasse la taille maximale autorisée." : error.message });
         });
@@ -1048,7 +1123,7 @@ async function handleApi(request, response, url) {
         }
 
         const deviceId = locationRoute[1];
-        const mettreAJourPosition = async (position) => {
+        const mettreAJourPosition = (position) => avecVerrouStore(async () => {
             const store = await readStore();
             const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
             if (!clientActuel) {
@@ -1075,7 +1150,7 @@ async function handleApi(request, response, url) {
             clientActuel.appareils = appareils;
             await writeStore(store);
             sendJson(response, 200, { location: appareil.location });
-        };
+        });
 
         if (request.method === "DELETE") {
             await mettreAJourPosition(null);
@@ -1107,7 +1182,7 @@ async function handleApi(request, response, url) {
             return true;
         }
 
-        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then(async (body) => {
+        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then((body) => avecVerrouStore(async () => {
             const store = await readStore();
             const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
             if (!clientActuel) {
@@ -1169,7 +1244,7 @@ async function handleApi(request, response, url) {
                     invitationExpiresAt
                 }
             });
-        }).catch((error) => {
+        })).catch((error) => {
             const status = error.message === "Payload trop volumineux" ? 413 : 400;
             sendJson(response, status, { error: status === 413 ? "La demande de partage est trop volumineuse." : error.message });
         });
@@ -1223,21 +1298,23 @@ async function handleApi(request, response, url) {
             sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
             return true;
         }
-        const store = await readStore();
-        const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
-        const partage = clientActuel?.locationShares?.find((item) => item.id === partageOwnerRoute[1]);
-        if (!partage) {
-            sendJson(response, 404, { error: "Invitation de partage introuvable." });
-            return true;
-        }
-        partage.revokedAt = new Date().toISOString();
-        await writeStore(store);
-        sendJson(response, 200, { ok: true });
+        await avecVerrouStore(async () => {
+            const store = await readStore();
+            const clientActuel = store.clients.find((item) => String(item.id) === String(client.id));
+            const partage = clientActuel?.locationShares?.find((item) => item.id === partageOwnerRoute[1]);
+            if (!partage) {
+                sendJson(response, 404, { error: "Invitation de partage introuvable." });
+                return;
+            }
+            partage.revokedAt = partage.revokedAt || new Date().toISOString();
+            await writeStore(store);
+            sendJson(response, 200, { ok: true });
+        });
         return true;
     }
 
     if (url.pathname === "/api/location-shares/accept" && request.method === "POST") {
-        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then(async (body) => {
+        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then((body) => avecVerrouStore(async () => {
             if (typeof body.token !== "string" || !/^[A-Za-z0-9_-]{40,50}$/.test(body.token)) {
                 sendJson(response, 400, { error: "Cette invitation de partage est invalide." });
                 return;
@@ -1265,13 +1342,12 @@ async function handleApi(request, response, url) {
             const maintenant = Date.now();
             partage.acceptedAt = new Date(maintenant).toISOString();
             partage.activeUntil = new Date(maintenant + LOCATION_SHARE_SESSION_TTL_MS).toISOString();
-            const charge = Buffer.from(JSON.stringify({
+            const jetonPartage = signerJeton(USAGE_PARTAGE_POSITION, {
                 clientId: client.id,
                 sessionVersion: client.sessionVersion || 0,
                 shareId: partage.id,
                 expireLe: maintenant + LOCATION_SHARE_SESSION_TTL_MS
-            })).toString("base64url");
-            const signature = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(charge).digest("base64url");
+            });
             await writeStore(store);
             sendJson(response, 200, {
                 partage: {
@@ -1280,9 +1356,9 @@ async function handleApi(request, response, url) {
                     activeUntil: partage.activeUntil
                 }
             }, {
-                "Set-Cookie": cookieSessionPartagePosition(`${charge}.${signature}`)
+                "Set-Cookie": cookieSessionPartagePosition(jetonPartage)
             });
-        }).catch((error) => {
+        })).catch((error) => {
             const status = error.message === "Payload trop volumineux" ? 413 : 400;
             sendJson(response, status, { error: status === 413 ? "La demande de partage est trop volumineuse." : error.message });
         });
@@ -1297,12 +1373,14 @@ async function handleApi(request, response, url) {
             });
             return true;
         }
+        const partageValide = (client, partage) => client && partage
+            && (client.sessionVersion || 0) === session.sessionVersion
+            && !partage.revokedAt && !partage.stoppedAt
+            && Date.parse(partage.activeUntil || "") > Date.now();
         const store = await readStore();
         const client = store.clients.find((item) => String(item.id) === String(session.clientId));
         const partage = client?.locationShares?.find((item) => item.id === session.shareId);
-        if (!client || (client.sessionVersion || 0) !== session.sessionVersion
-            || !partage || partage.revokedAt || partage.stoppedAt
-            || Date.parse(partage.activeUntil || "") <= Date.now()) {
+        if (!partageValide(client, partage)) {
             sendJson(response, 410, { error: "Ce partage a été arrêté ou révoqué." }, {
                 "Set-Cookie": cookieSessionPartagePosition("", 0)
             });
@@ -1310,15 +1388,22 @@ async function handleApi(request, response, url) {
         }
 
         if (request.method === "DELETE") {
-            partage.stoppedAt = new Date().toISOString();
-            await writeStore(store);
+            await avecVerrouStore(async () => {
+                const storeActuel = await readStore();
+                const partageActuel = storeActuel.clients.find((item) => String(item.id) === String(session.clientId))
+                    ?.locationShares?.find((item) => item.id === session.shareId);
+                if (partageActuel && !partageActuel.stoppedAt) {
+                    partageActuel.stoppedAt = new Date().toISOString();
+                    await writeStore(storeActuel);
+                }
+            });
             sendJson(response, 200, { ok: true }, {
                 "Set-Cookie": cookieSessionPartagePosition("", 0)
             });
             return true;
         }
 
-        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then(async (body) => {
+        readBody(request, MAX_LOCATION_SHARE_BODY_SIZE).then((body) => avecVerrouStore(async () => {
             if (!Number.isFinite(body.latitude) || Math.abs(body.latitude) > 90
                 || !Number.isFinite(body.longitude) || Math.abs(body.longitude) > 180) {
                 sendJson(response, 400, { error: "Coordonnées de position invalides." });
@@ -1329,8 +1414,7 @@ async function handleApi(request, response, url) {
             const partageActuel = clientActuel?.locationShares?.find((item) => item.id === session.shareId);
             const appareils = validerInventaireAppareils(clientActuel?.appareils || []);
             const appareil = appareils?.find((item) => item.id === partageActuel?.deviceId);
-            if (!clientActuel || !partageActuel || partageActuel.revokedAt || partageActuel.stoppedAt
-                || Date.parse(partageActuel.activeUntil || "") <= Date.now()) {
+            if (!partageValide(clientActuel, partageActuel)) {
                 sendJson(response, 410, { error: "Ce partage a été arrêté ou révoqué." }, {
                     "Set-Cookie": cookieSessionPartagePosition("", 0)
                 });
@@ -1350,7 +1434,7 @@ async function handleApi(request, response, url) {
             clientActuel.appareils = appareils;
             await writeStore(storeActuel);
             sendJson(response, 200, { location: position });
-        }).catch((error) => {
+        })).catch((error) => {
             const status = error.message === "Payload trop volumineux" ? 413 : 400;
             sendJson(response, status, { error: status === 413 ? "La position dépasse la taille maximale autorisée." : error.message });
         });
@@ -1463,23 +1547,20 @@ async function handleApi(request, response, url) {
             return true;
         }
         const store = await readStore();
-        const order = (store.orders || []).find((item) => item.id === transactionId);
-        if (!order) {
+        if (!(store.orders || []).some((item) => item.id === transactionId)) {
             sendJson(response, 404, { error: "Commande introuvable." });
             return true;
         }
-        const verified = await verifierTransactionCinetPay(transactionId);
-        const payment = verified.data || {};
-        if (payment.status === "ACCEPTED" && verified.code === "00"
-            && Number(payment.amount) === Number(order.prix) && payment.currency === "XOF") {
-            order.statut = "confirmée";
-            order.methodePaiement = payment.payment_method || "CinetPay";
-            order.paiementConfirmeLe = payment.payment_date || new Date().toISOString();
-        } else if (["REFUSED", "CANCELLED", "EXPIRED"].includes(String(payment.status || "").toUpperCase())) {
-            order.statut = "paiement refusé";
+        let verified;
+        try {
+            verified = await verifierTransactionCinetPay(transactionId);
+        } catch (error) {
+            console.error("Vérification CinetPay impossible:", error.message);
+            sendJson(response, 503, { error: "Vérification du paiement momentanément indisponible." });
+            return true;
         }
-        await writeStore(store);
-        if (order.statut === "confirmée") await notifierCommandeConfirmee(order, store);
+        const order = await appliquerVerificationPaiement(transactionId, verified);
+        if (order?.statut === "confirmée") await notifierCommandeConfirmee(order);
         response.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
         response.end("OK");
         return true;
@@ -1492,7 +1573,7 @@ async function handleApi(request, response, url) {
             return true;
         }
         const store = await readStore();
-        const order = (store.orders || []).find((item) => item.id === transactionId);
+        let order = (store.orders || []).find((item) => item.id === transactionId);
         if (!order) {
             sendJson(response, 404, { error: "Commande introuvable." });
             return true;
@@ -1500,22 +1581,12 @@ async function handleApi(request, response, url) {
         if (order.statut === "en attente de paiement" && configurationPaiement()) {
             try {
                 const verified = await verifierTransactionCinetPay(transactionId);
-                const payment = verified.data || {};
-                if (verified.code === "00" && payment.status === "ACCEPTED"
-                    && Number(payment.amount) === Number(order.prix) && payment.currency === "XOF") {
-                    order.statut = "confirmée";
-                    order.methodePaiement = payment.payment_method || "CinetPay";
-                    order.paiementConfirmeLe = payment.payment_date || new Date().toISOString();
-                    await writeStore(store);
-                } else if (["REFUSED", "CANCELLED", "EXPIRED"].includes(String(payment.status || "").toUpperCase())) {
-                    order.statut = "paiement refusé";
-                    await writeStore(store);
-                }
+                order = await appliquerVerificationPaiement(transactionId, verified) || order;
             } catch (error) {
                 console.warn("Vérification du paiement différée:", error.message);
             }
         }
-        if (order.statut === "confirmée") await notifierCommandeConfirmee(order, store);
+        if (order.statut === "confirmée") await notifierCommandeConfirmee(order);
         sendJson(response, 200, { statut: order.statut, produit: order.produit });
         return true;
     }
@@ -1545,7 +1616,8 @@ async function handleApi(request, response, url) {
             return true;
         }
         const emailResponse = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(event.data.email_id)}`, {
-            headers: { "Authorization": `Bearer ${apiKey}` }
+            headers: { "Authorization": `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(15000)
         });
         if (!emailResponse.ok) throw new Error("Impossible de récupérer le contenu du message reçu.");
         const received = await emailResponse.json();
@@ -1560,9 +1632,10 @@ async function handleApi(request, response, url) {
             .replace(/&#39;|&apos;/gi, "'")
             .replace(/&quot;/gi, '"')
             .trim();
-        const store = await readStore();
-        store.emailMessages = store.emailMessages || [];
-        if (!store.emailMessages.some((message) => message.emailId === received.id)) {
+        await avecVerrouStore(async () => {
+            const store = await readStore();
+            store.emailMessages = store.emailMessages || [];
+            if (store.emailMessages.some((message) => message.emailId === received.id)) return;
             store.emailMessages.unshift({
                 id: received.id,
                 emailId: received.id,
@@ -1575,7 +1648,7 @@ async function handleApi(request, response, url) {
             });
             store.emailMessages = store.emailMessages.slice(0, 200);
             await writeStore(store);
-        }
+        });
         sendJson(response, 200, { ok: true });
         return true;
     }
@@ -1609,14 +1682,16 @@ async function handleApi(request, response, url) {
                 sendJson(response, 503, { error: "L'envoi d'e-mail n'est pas configuré ou le service est indisponible." });
                 return;
             }
-            const store = await readStore();
-            store.emailMessages = store.emailMessages || [];
-            store.emailMessages.unshift({
-                id: `contact-${Date.now()}`, nom, email, sujet: "Message envoyé depuis le formulaire du site",
-                message, date: new Date().toISOString(), direction: "envoyé"
+            await avecVerrouStore(async () => {
+                const store = await readStore();
+                store.emailMessages = store.emailMessages || [];
+                store.emailMessages.unshift({
+                    id: `contact-${nouvelIdNumerique()}`, nom, email, sujet: "Message envoyé depuis le formulaire du site",
+                    message, date: new Date().toISOString(), direction: "envoyé"
+                });
+                store.emailMessages = store.emailMessages.slice(0, 200);
+                await writeStore(store);
             });
-            store.emailMessages = store.emailMessages.slice(0, 200);
-            await writeStore(store);
             sendJson(response, 201, { ok: true });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
@@ -1736,6 +1811,7 @@ async function handleApi(request, response, url) {
                 return true;
             }
 
+            await avecVerrouStore(async () => {
             const store = await readStore();
             store.knowledgeDocuments = store.knowledgeDocuments || [];
             const empreinte = crypto.createHash("sha256").update(buffer).digest("hex");
@@ -1780,21 +1856,24 @@ async function handleApi(request, response, url) {
                 message: indexExistant >= 0 ? "La nouvelle version de l’œuvre a remplacé l’ancienne." : "L’œuvre a été ajoutée à la base documentaire.",
                 document: { id: document.id, title: document.title, fileName: document.fileName, pages, characterCount: texte.length, chunkCount: chunks.length }
             });
+            });
             return true;
         }
 
         const id = url.pathname.slice("/api/admin/knowledge/".length);
         if (request.method === "DELETE" && /^\/api\/admin\/knowledge\/[a-f0-9-]{36}$/.test(url.pathname)) {
-            const store = await readStore();
-            const documents = store.knowledgeDocuments || [];
-            const nombreAvant = documents.length;
-            store.knowledgeDocuments = documents.filter((document) => document.id !== id);
-            if (store.knowledgeDocuments.length === nombreAvant) {
-                sendJson(response, 404, { error: "Document introuvable dans la base." });
-                return true;
-            }
-            await writeStore(store);
-            sendJson(response, 200, { ok: true });
+            await avecVerrouStore(async () => {
+                const store = await readStore();
+                const documents = store.knowledgeDocuments || [];
+                const nombreAvant = documents.length;
+                store.knowledgeDocuments = documents.filter((document) => document.id !== id);
+                if (store.knowledgeDocuments.length === nombreAvant) {
+                    sendJson(response, 404, { error: "Document introuvable dans la base." });
+                    return;
+                }
+                await writeStore(store);
+                sendJson(response, 200, { ok: true });
+            });
             return true;
         }
 
@@ -1904,19 +1983,33 @@ async function handleApi(request, response, url) {
                 return;
             }
 
-            const traductionResponse = await fetch(
-                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(texte)}&langpair=fr|${encodeURIComponent(langue)}`
-            );
-            const traductionData = await traductionResponse.json();
-            const traduction = traductionData?.responseData?.translatedText;
-
-            if (!traductionResponse.ok || !traduction) {
-                sendJson(response, 502, { error: "Le service de traduction est indisponible." });
-                return;
+            // MyMemory refuse les requêtes de plus de 500 caractères (et renvoie alors son
+            // message d'erreur comme « traduction ») : le texte est traduit par morceaux.
+            const morceaux = decouperPourTraduction(texte.slice(0, 2000), 450);
+            const traductions = [];
+            for (const morceau of morceaux) {
+                const traductionResponse = await fetch(
+                    `https://api.mymemory.translated.net/get?q=${encodeURIComponent(morceau)}&langpair=fr|${encodeURIComponent(langue)}`,
+                    { signal: AbortSignal.timeout(15000) }
+                );
+                const traductionData = await traductionResponse.json().catch(() => null);
+                const traduction = traductionData?.responseData?.translatedText;
+                if (!traductionResponse.ok || Number(traductionData?.responseStatus) !== 200 || typeof traduction !== "string" || !traduction.trim()) {
+                    sendJson(response, 502, { error: "Le service de traduction est indisponible." });
+                    return;
+                }
+                traductions.push(traduction.trim());
             }
 
-            sendJson(response, 200, { translation: traduction });
-        }).catch((error) => sendJson(response, 502, { error: error.message }));
+            sendJson(response, 200, { translation: traductions.join(" ") });
+        }).catch((error) => {
+            if (error.message === "JSON invalide" || error.message === "Payload trop volumineux") {
+                sendJson(response, 400, { error: error.message });
+                return;
+            }
+            console.error("Traduction impossible:", error.message);
+            sendJson(response, 502, { error: "Le service de traduction est indisponible." });
+        });
         return true;
     }
 
@@ -1934,17 +2027,20 @@ async function handleApi(request, response, url) {
                 return;
             }
 
-            const store = await readStore();
-            store.actualites = store.actualites || [];
-            const actualite = {
-                id: Date.now(),
-                title: title.slice(0, 150),
-                type: type.slice(0, 60),
-                content: content.slice(0, 2000),
-                date: new Date().toISOString()
-            };
-            store.actualites.push(actualite);
-            await writeStore(store);
+            const actualite = await avecVerrouStore(async () => {
+                const store = await readStore();
+                store.actualites = store.actualites || [];
+                const nouvelle = {
+                    id: nouvelIdNumerique(),
+                    title: title.slice(0, 150),
+                    type: type.slice(0, 60),
+                    content: content.slice(0, 2000),
+                    date: new Date().toISOString()
+                };
+                store.actualites.push(nouvelle);
+                await writeStore(store);
+                return nouvelle;
+            });
             sendJson(response, 201, actualite);
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
@@ -1965,52 +2061,57 @@ async function handleApi(request, response, url) {
                 return;
             }
 
-            const store = await readStore();
-            store.creations = store.creations || [];
-            const creation = {
-                id: Date.now(),
-                title,
-                category: String(body.category || "Autre").trim().slice(0, 100),
-                description: String(body.description || "Création visuelle.").trim().slice(0, 2000),
-                image,
-                pdf,
-                video,
-                date: new Date().toISOString()
-            };
-            store.creations.push(creation);
-            await writeStore(store);
+            const creation = await avecVerrouStore(async () => {
+                const store = await readStore();
+                store.creations = store.creations || [];
+                const nouvelle = {
+                    id: nouvelIdNumerique(),
+                    title,
+                    category: String(body.category || "Autre").trim().slice(0, 100),
+                    description: String(body.description || "Création visuelle.").trim().slice(0, 2000),
+                    image,
+                    pdf,
+                    video,
+                    date: new Date().toISOString()
+                };
+                store.creations.push(nouvelle);
+                await writeStore(store);
+                return nouvelle;
+            });
             sendJson(response, 201, creation);
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
     if (request.method === "POST" && url.pathname === "/api/discussions") {
-        readBody(request).then(async (body) => {
-            if (!body.name || !body.email || !body.type || !body.message) {
-                sendJson(response, 400, { error: "Nom, e-mail, type et message requis." });
+        readBody(request).then((body) => avecVerrouStore(async () => {
+            if (!String(body.name || "").trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email || "").trim())
+                || !String(body.type || "").trim() || !String(body.message || "").trim()) {
+                sendJson(response, 400, { error: "Nom, e-mail valide, type et message requis." });
                 return;
             }
 
             const store = await readStore();
+            store.discussions = store.discussions || [];
             store.blocks = store.blocks || [];
             if (store.blocks.some((blockedName) => blockedName.toLowerCase() === String(body.name).trim().toLowerCase())) {
                 sendJson(response, 403, { error: "Ce profil est bloqué par le studio." });
                 return;
             }
             const discussion = {
-                id: Date.now(),
-                name: String(body.name).slice(0, 100),
+                id: nouvelIdNumerique(),
+                name: String(body.name).trim().slice(0, 100),
                 email: String(body.email).trim().toLowerCase().slice(0, 150),
                 language: String(body.language || "fr").slice(0, 10),
-                type: String(body.type).slice(0, 100),
-                message: String(body.message).slice(0, 2000),
+                type: String(body.type).trim().slice(0, 100),
+                message: String(body.message).trim().slice(0, 2000),
                 date: new Date().toISOString(),
                 replies: []
             };
             store.discussions.push(discussion);
             await writeStore(store);
             sendJson(response, 201, discussion);
-        }).catch((error) => sendJson(response, 400, { error: error.message }));
+        })).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
@@ -2022,36 +2123,42 @@ async function handleApi(request, response, url) {
 
     if (discussionMatch && request.method === "DELETE" && !discussionMatch[2]) {
         const discussionId = Number(discussionMatch[1]);
-        const store = await readStore();
-        store.discussions = store.discussions.filter((discussion) => discussion.id !== discussionId);
-        await writeStore(store);
+        await avecVerrouStore(async () => {
+            const store = await readStore();
+            store.discussions = (store.discussions || []).filter((discussion) => discussion.id !== discussionId);
+            await writeStore(store);
+        });
         sendJson(response, 200, { ok: true });
         return true;
     }
 
     if (discussionMatch && request.method === "POST" && discussionMatch[2] === "reply") {
         readBody(request).then(async (body) => {
-            if (!body.message) {
+            if (!String(body.message || "").trim()) {
                 sendJson(response, 400, { error: "Une réponse est requise." });
                 return;
             }
 
             const discussionId = Number(discussionMatch[1]);
-            const store = await readStore();
-            const discussion = store.discussions.find((item) => item.id === discussionId);
-            if (!discussion) {
+            const resultat = await avecVerrouStore(async () => {
+                const store = await readStore();
+                const discussionTrouvee = (store.discussions || []).find((item) => item.id === discussionId);
+                if (!discussionTrouvee) return null;
+                discussionTrouvee.replies = discussionTrouvee.replies || [];
+                const nouvelleReponse = {
+                    id: nouvelIdNumerique(),
+                    message: String(body.message).trim().slice(0, 2000),
+                    date: new Date().toISOString()
+                };
+                discussionTrouvee.replies.push(nouvelleReponse);
+                await writeStore(store);
+                return { discussion: discussionTrouvee, reply: nouvelleReponse };
+            });
+            if (!resultat) {
                 sendJson(response, 404, { error: "Discussion introuvable." });
                 return;
             }
-
-            discussion.replies = discussion.replies || [];
-            const reply = {
-                id: Date.now(),
-                message: String(body.message).slice(0, 2000),
-                date: new Date().toISOString()
-            };
-            discussion.replies.push(reply);
-            await writeStore(store);
+            const { discussion, reply } = resultat;
             let emailEnvoye = false;
             try {
                 emailEnvoye = await envoyerEmailReponse(discussion, reply.message);
@@ -2065,20 +2172,23 @@ async function handleApi(request, response, url) {
 
     if (discussionMatch && request.method === "POST" && discussionMatch[2] === "block") {
         const discussionId = Number(discussionMatch[1]);
-        const store = await readStore();
-        const discussion = store.discussions.find((item) => item.id === discussionId);
-        if (!discussion) {
-            sendJson(response, 404, { error: "Discussion introuvable." });
-            return true;
-        }
+        await avecVerrouStore(async () => {
+            const store = await readStore();
+            const discussion = (store.discussions || []).find((item) => item.id === discussionId);
+            if (!discussion) {
+                sendJson(response, 404, { error: "Discussion introuvable." });
+                return;
+            }
 
-        store.blocks = store.blocks || [];
-        if (!store.blocks.includes(discussion.name)) {
-            store.blocks.push(discussion.name);
-        }
-        store.discussions = store.discussions.filter((item) => item.name !== discussion.name);
-        await writeStore(store);
-        sendJson(response, 200, { ok: true });
+            store.blocks = store.blocks || [];
+            const nomBloque = String(discussion.name).trim().toLowerCase();
+            if (!store.blocks.some((nom) => String(nom).trim().toLowerCase() === nomBloque)) {
+                store.blocks.push(String(discussion.name).trim());
+            }
+            store.discussions = store.discussions.filter((item) => String(item.name).trim().toLowerCase() !== nomBloque);
+            await writeStore(store);
+            sendJson(response, 200, { ok: true });
+        });
         return true;
     }
 
@@ -2097,22 +2207,30 @@ async function handleApi(request, response, url) {
                 return;
             }
 
-            const store = await readStore();
-            if (store.clients.some((client) => client.email === email)) {
+            if (email.length > 150 || [...motDePasse].length > 128) {
+                sendJson(response, 400, { error: "Adresse e-mail ou mot de passe trop long." });
+                return;
+            }
+            const motDePasseHash = hashPassword(motDePasse);
+            const client = await avecVerrouStore(async () => {
+                const store = await readStore();
+                if (store.clients.some((item) => item.email === email)) return null;
+                const nouveau = {
+                    id: nouvelIdNumerique(),
+                    nom,
+                    email,
+                    motDePasseHash,
+                    telephone,
+                    creeLe: new Date().toISOString()
+                };
+                store.clients.push(nouveau);
+                await writeStore(store);
+                return nouveau;
+            });
+            if (!client) {
                 sendJson(response, 409, { error: "Cette adresse e-mail est déjà utilisée." });
                 return;
             }
-
-            const client = {
-                id: Date.now(),
-                nom,
-                email,
-                motDePasseHash: hashPassword(motDePasse),
-                telephone,
-                creeLe: new Date().toISOString()
-            };
-            store.clients.push(client);
-            await writeStore(store);
             let emailEnvoye = false;
             try {
                 emailEnvoye = await envoyerEmailConfirmation(client);
@@ -2142,8 +2260,15 @@ async function handleApi(request, response, url) {
                 return;
             }
             if (verification.ancienFormat) {
-                client.motDePasseHash = hashPassword(motDePasse);
-                await writeStore(store);
+                const nouveauHash = hashPassword(motDePasse);
+                await avecVerrouStore(async () => {
+                    const storeActuel = await readStore();
+                    const compte = storeActuel.clients.find((item) => item.id === client.id);
+                    if (compte && compte.motDePasseHash === client.motDePasseHash) {
+                        compte.motDePasseHash = nouveauHash;
+                        await writeStore(storeActuel);
+                    }
+                });
             }
 
             sendJson(response, 200, {
@@ -2159,9 +2284,10 @@ async function handleApi(request, response, url) {
     if (request.method === "POST" && url.pathname === "/api/orders") {
         readBody(request).then(async (body) => {
             const nom = String(body.nom || "").trim().slice(0, 100);
-            const email = String(body.email || "").trim().slice(0, 150);
+            const email = String(body.email || "").trim().toLowerCase().slice(0, 150);
             const telephone = String(body.telephone || "").trim().slice(0, 40);
-            const produit = CATALOGUE_PAIEMENT[String(body.produitId || "")];
+            const produitId = String(body.produitId || "");
+            const produit = Object.hasOwn(CATALOGUE_PAIEMENT, produitId) ? CATALOGUE_PAIEMENT[produitId] : null;
             if (!nom || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !telephone || !produit) {
                 sendJson(response, 400, { error: "Informations de commande incomplètes." });
                 return;
@@ -2172,7 +2298,6 @@ async function handleApi(request, response, url) {
                 return;
             }
             const transactionId = crypto.randomUUID().replace(/-/g, "");
-            const store = await readStore();
             const order = {
                 id: transactionId,
                 produit: produit.nom,
@@ -2185,8 +2310,16 @@ async function handleApi(request, response, url) {
                 date: new Date().toISOString(),
                 statut: "en attente de paiement"
             };
-            store.orders.push(order);
-            await writeStore(store);
+            await avecVerrouStore(async () => {
+                const store = await readStore();
+                store.orders = store.orders || [];
+                store.orders.push(order);
+                await writeStore(store);
+            });
+            const marquerEchec = () => mettreAJourCommande(transactionId, (item) => {
+                if (item.statut !== "en attente de paiement") return false;
+                item.statut = "échec de création du paiement";
+            });
             const [prenom, ...nomFamille] = nom.split(/\s+/);
             let checkout;
             let checkoutHttpOk = false;
@@ -2219,8 +2352,7 @@ async function handleApi(request, response, url) {
                 checkoutHttpOk = checkoutResponse.ok;
                 checkout = await checkoutResponse.json();
             } catch (error) {
-                order.statut = "échec de création du paiement";
-                await writeStore(store);
+                await marquerEchec();
                 console.error("Initialisation CinetPay:", error.message);
                 sendJson(response, 502, { error: "Impossible de joindre le service de paiement. Réessayez plus tard." });
                 return;
@@ -2234,8 +2366,7 @@ async function handleApi(request, response, url) {
             }
             if (!checkoutHttpOk || String(checkout?.code) !== "201" || !urlPaiement
                 || urlPaiement.protocol !== "https:" || !urlPaiement.hostname.endsWith("cinetpay.com")) {
-                order.statut = "échec de création du paiement";
-                await writeStore(store);
+                await marquerEchec();
                 console.error("Réponse CinetPay invalide:", checkout?.message || checkout?.description || checkout?.code);
                 sendJson(response, 502, { error: "Le service de paiement n'a pas pu préparer cette commande." });
                 return;
@@ -2310,7 +2441,7 @@ initialiserStockage().then(() => http.createServer((request, response) => {
         return;
     }
 
-    if (isRateLimited(request)) {
+    if (url.pathname.startsWith("/api/") && isRateLimited(request)) {
         response.writeHead(429, {
             "Content-Type": "application/json; charset=utf-8",
             "Retry-After": "60",

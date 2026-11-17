@@ -50,6 +50,10 @@ const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 120;
 const PASSWORD_RESET_WINDOW_MS = 15 * 60 * 1000;
 const PASSWORD_RESET_RATE_LIMIT = 5;
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const EMAIL_VERIFICATION_RATE_LIMIT = 5;
+const EMAIL_VERIFICATION_RESEND_DELAY_MS = 60 * 1000;
+const emailVerificationRequestCounts = new Map();
 const requestCounts = new Map();
 const passwordResetRequestCounts = new Map();
 const assistantRequestCounts = new Map();
@@ -663,17 +667,84 @@ function limiterReinitialisationMotDePasseAtteint(request) {
     return current.count > PASSWORD_RESET_RATE_LIMIT;
 }
 
-function urlPubliqueReinitialisationMotDePasse() {
-    const base = String(process.env.PUBLIC_BASE_URL || "").trim();
+// Origine publique du site (sans chemin). En développement, l'adresse locale sert de repli.
+function originePublique({ repliLocal = false } = {}) {
+    const base = String(process.env.PUBLIC_BASE_URL || "").trim()
+        || (repliLocal && !IS_PRODUCTION ? `http://localhost:${PORT}` : "");
     if (!base) return "";
     try {
         const url = new URL(base);
         if (!["http:", "https:"].includes(url.protocol) || (IS_PRODUCTION && url.protocol !== "https:")
             || url.username || url.password || url.search || url.hash) return "";
-        return `${url.origin}/appareils.html`;
+        return url.origin;
     } catch {
         return "";
     }
+}
+
+function urlPubliqueReinitialisationMotDePasse() {
+    const origine = originePublique();
+    return origine ? `${origine}/appareils.html` : "";
+}
+
+function limiteVerificationEmailAtteinte(request) {
+    const maintenant = Date.now();
+    const adresse = getClientAddress(request);
+    if (emailVerificationRequestCounts.size > 10000) {
+        for (const [cle, entree] of emailVerificationRequestCounts) {
+            if (maintenant - entree.startedAt > PASSWORD_RESET_WINDOW_MS) emailVerificationRequestCounts.delete(cle);
+        }
+    }
+    const fenetre = emailVerificationRequestCounts.get(adresse);
+    if (!fenetre || maintenant - fenetre.startedAt > PASSWORD_RESET_WINDOW_MS) {
+        emailVerificationRequestCounts.set(adresse, { startedAt: maintenant, count: 1 });
+        return false;
+    }
+    fenetre.count += 1;
+    return fenetre.count > EMAIL_VERIFICATION_RATE_LIMIT;
+}
+
+// Prépare un nouveau jeton de vérification d'adresse : seul son empreinte est conservée.
+function preparerVerificationEmail(compte) {
+    const token = crypto.randomBytes(32).toString("base64url");
+    compte.emailVerificationTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    compte.emailVerificationExpiresAt = Date.now() + EMAIL_VERIFICATION_TTL_MS;
+    compte.emailVerificationSentAt = Date.now();
+    return token;
+}
+
+function emailVerificationDisponible() {
+    return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && originePublique({ repliLocal: true }));
+}
+
+async function envoyerEmailVerification(client, token) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    const origine = originePublique({ repliLocal: true });
+    if (!apiKey || !from || !origine) return false;
+    const lien = `${origine}/?verifier_email=${encodeURIComponent(token)}#compte`;
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+            from,
+            to: [client.email],
+            subject: "Confirmez votre adresse e-mail — Unique Art Visuel Studio",
+            text: `Bonjour ${client.nom},\n\nPour activer votre espace client Unique Art Visuel Studio et retrouver vos demandes et commandes, confirmez votre adresse dans les 24 heures : ${lien}\n\nSi vous n'avez pas créé de compte, ignorez cet e-mail.`,
+            html: `<p>Bonjour ${echapperEmail(client.nom)},</p><p>Pour activer votre espace client Unique Art Visuel Studio et retrouver vos demandes et commandes, confirmez votre adresse e-mail.</p><p><a href="${echapperEmail(lien)}">Confirmer mon adresse e-mail</a></p><p>Ce lien expire dans 24 heures. Si vous n’avez pas créé de compte, ignorez cet e-mail.</p>`
+        }),
+        signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) throw new Error(`Le fournisseur d’e-mail a répondu avec le statut ${response.status}.`);
+    return true;
+}
+
+// Une donnée (commande, demande) appartient au compte si elle y a été rattachée à la création,
+// ou si elle porte son adresse e-mail ET que cette adresse a été vérifiée par le titulaire.
+function appartientAuClient(element, client) {
+    if (element.clientId !== undefined && element.clientId !== null) return String(element.clientId) === String(client.id);
+    return client.emailVerifie === true
+        && String(element.email || "").trim().toLowerCase() === client.email;
 }
 
 async function envoyerEmailReinitialisationMotDePasse(client, resetUrl) {
@@ -690,9 +761,9 @@ async function envoyerEmailReinitialisationMotDePasse(client, resetUrl) {
         body: JSON.stringify({
             from,
             to: [client.email],
-            subject: "Réinitialisation de votre mot de passe Retrouve",
+            subject: "Réinitialisation de votre mot de passe — Unique Art Visuel Studio",
             text: `Une demande de réinitialisation a été faite pour votre compte. Ouvrez ce lien dans les 30 minutes : ${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.`,
-            html: `<p>Une demande de réinitialisation a été faite pour votre compte Retrouve.</p><p><a href="${echapperEmail(resetUrl)}">Choisir un nouveau mot de passe</a></p><p>Ce lien expire dans 30 minutes. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.</p>`
+            html: `<p>Une demande de réinitialisation a été faite pour votre compte Unique Art Visuel Studio.</p><p><a href="${echapperEmail(resetUrl)}">Choisir un nouveau mot de passe</a></p><p>Ce lien expire dans 30 minutes. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.</p>`
         }),
         signal: AbortSignal.timeout(15000)
     });
@@ -967,7 +1038,88 @@ async function handleApi(request, response, url) {
             sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
             return true;
         }
-        sendJson(response, 200, { id: client.id, nom: client.nom, email: client.email, telephone: client.telephone });
+        sendJson(response, 200, {
+            id: client.id, nom: client.nom, email: client.email, telephone: client.telephone,
+            emailVerifie: client.emailVerifie === true
+        });
+        return true;
+    }
+
+    if (url.pathname === "/api/client/email-verification" && request.method === "POST") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+        if (client.emailVerifie === true) {
+            sendJson(response, 200, { ok: true, dejaVerifie: true });
+            return true;
+        }
+        if (limiteVerificationEmailAtteinte(request)) {
+            sendJson(response, 429, { error: "Trop de demandes. Réessayez dans quelques minutes." }, { "Retry-After": "900" });
+            return true;
+        }
+        if (!emailVerificationDisponible()) {
+            sendJson(response, 503, { error: "L’envoi d’e-mails n’est pas encore configuré : la vérification de l’adresse est momentanément indisponible." });
+            return true;
+        }
+        const preparation = await avecVerrouStore(async () => {
+            const store = await readStore();
+            const compte = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!compte) return { erreur: 401 };
+            if (Date.now() - (Number(compte.emailVerificationSentAt) || 0) < EMAIL_VERIFICATION_RESEND_DELAY_MS) return { erreur: 429 };
+            const token = preparerVerificationEmail(compte);
+            await writeStore(store);
+            return { compte: { ...compte }, token };
+        });
+        if (preparation.erreur === 401) {
+            sendJson(response, 401, { error: "Veuillez vous reconnecter à votre compte client." });
+            return true;
+        }
+        if (preparation.erreur === 429) {
+            sendJson(response, 429, { error: "Un lien vient d’être envoyé. Patientez une minute avant d’en demander un autre." }, { "Retry-After": "60" });
+            return true;
+        }
+        try {
+            await envoyerEmailVerification(preparation.compte, preparation.token);
+        } catch (error) {
+            console.error("E-mail de vérification non envoyé:", error.message);
+            sendJson(response, 502, { error: "L’e-mail de vérification n’a pas pu être envoyé. Réessayez plus tard." });
+            return true;
+        }
+        sendJson(response, 202, { ok: true, message: "Un lien de vérification a été envoyé à votre adresse. Vérifiez aussi vos courriers indésirables." });
+        return true;
+    }
+
+    if (url.pathname === "/api/email/verify" && request.method === "POST") {
+        readBody(request, MAX_CLIENT_RECOVERY_BODY_SIZE).then(async (body) => {
+            const token = String(body.token || "");
+            if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+                sendJson(response, 400, { error: "Le lien de vérification est invalide ou expiré." });
+                return;
+            }
+            const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+            const verifie = await avecVerrouStore(async () => {
+                const store = await readStore();
+                const compte = store.clients.find((item) => item.emailVerificationTokenHash === tokenHash
+                    && Number(item.emailVerificationExpiresAt) > Date.now());
+                if (!compte) return false;
+                compte.emailVerifie = true;
+                compte.emailVerifieLe = new Date().toISOString();
+                delete compte.emailVerificationTokenHash;
+                delete compte.emailVerificationExpiresAt;
+                await writeStore(store);
+                return true;
+            });
+            if (!verifie) {
+                sendJson(response, 400, { error: "Le lien de vérification est invalide ou expiré. Connectez-vous pour en demander un nouveau." });
+                return;
+            }
+            sendJson(response, 200, { ok: true, message: "Votre adresse e-mail est confirmée." });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La demande est trop volumineuse." : error.message });
+        });
         return true;
     }
 
@@ -1452,7 +1604,7 @@ async function handleApi(request, response, url) {
         }
         const store = await readStore();
         const commandes = (store.orders || [])
-            .filter((order) => String(order.email || "").trim().toLowerCase() === client.email)
+            .filter((order) => appartientAuClient(order, client))
             .sort((left, right) => new Date(right.date) - new Date(left.date))
             .map((order) => ({ produit: order.produit, prix: order.prix, statut: order.statut, date: order.date }));
         sendJson(response, 200, commandes);
@@ -1467,7 +1619,7 @@ async function handleApi(request, response, url) {
         }
         const store = await readStore();
         const discussions = (store.discussions || [])
-            .filter((discussion) => String(discussion.email || "").trim().toLowerCase() === client.email)
+            .filter((discussion) => appartientAuClient(discussion, client))
             .sort((left, right) => new Date(right.date) - new Date(left.date))
             .map(({ id, name, type, message, date, replies }) => ({
                 id, name, type, message, date,
@@ -1710,6 +1862,7 @@ async function handleApi(request, response, url) {
                 passwordRecovery: Boolean(
                     process.env.RESEND_API_KEY && process.env.EMAIL_FROM && urlPubliqueReinitialisationMotDePasse()
                 ),
+                emailVerification: emailVerificationDisponible(),
                 payments: Boolean(configurationPaiement()),
                 writingAssistant: Boolean(configurationAssistant())
             }
@@ -1978,7 +2131,8 @@ async function handleApi(request, response, url) {
     if (request.method === "POST" && url.pathname === "/api/translate") {
         readBody(request).then(async (body) => {
             const texte = String(body.text || "").trim();
-            const langue = String(body.language || "en").trim().toLowerCase();
+            // Le site envoie « targetLanguage » ; « language » reste accepté pour compatibilité.
+            const langue = String(body.targetLanguage || body.language || "en").trim().toLowerCase();
             const languesAutorisees = ["en", "es", "pt", "de", "ar"];
 
             if (!texte || !languesAutorisees.includes(langue)) {
@@ -2087,6 +2241,7 @@ async function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/discussions") {
+        const auteurConnecte = await obtenirClientConnecte(request);
         readBody(request).then((body) => avecVerrouStore(async () => {
             if (!String(body.name || "").trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email || "").trim())
                 || !String(body.type || "").trim() || !String(body.message || "").trim()) {
@@ -2111,6 +2266,7 @@ async function handleApi(request, response, url) {
                 date: new Date().toISOString(),
                 replies: []
             };
+            if (auteurConnecte) discussion.clientId = auteurConnecte.id;
             store.discussions.push(discussion);
             await writeStore(store);
             sendJson(response, 201, discussion);
@@ -2224,11 +2380,13 @@ async function handleApi(request, response, url) {
                     email,
                     motDePasseHash,
                     telephone,
+                    emailVerifie: false,
                     creeLe: new Date().toISOString()
                 };
+                const token = emailVerificationDisponible() ? preparerVerificationEmail(nouveau) : null;
                 store.clients.push(nouveau);
                 await writeStore(store);
-                return nouveau;
+                return { ...nouveau, token };
             });
             if (!client) {
                 sendJson(response, 409, { error: "Cette adresse e-mail est déjà utilisée." });
@@ -2236,11 +2394,13 @@ async function handleApi(request, response, url) {
             }
             let emailEnvoye = false;
             try {
-                emailEnvoye = await envoyerEmailConfirmation(client);
+                emailEnvoye = client.token
+                    ? await envoyerEmailVerification(client, client.token)
+                    : await envoyerEmailConfirmation(client);
             } catch (error) {
-                console.error("E-mail de confirmation non envoyé:", error.message);
+                console.error("E-mail de vérification non envoyé:", error.message);
             }
-            sendJson(response, 201, { ok: true, emailEnvoye });
+            sendJson(response, 201, { ok: true, emailEnvoye, verificationRequise: true });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
@@ -2278,13 +2438,15 @@ async function handleApi(request, response, url) {
                 id: client.id,
                 nom: client.nom,
                 email: client.email,
-                telephone: client.telephone
+                telephone: client.telephone,
+                emailVerifie: client.emailVerifie === true
             }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id, client.sessionVersion || 0)) });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
     if (request.method === "POST" && url.pathname === "/api/orders") {
+        const acheteurConnecte = await obtenirClientConnecte(request);
         readBody(request).then(async (body) => {
             const nom = String(body.nom || "").trim().slice(0, 100);
             const email = String(body.email || "").trim().toLowerCase().slice(0, 150);
@@ -2313,6 +2475,7 @@ async function handleApi(request, response, url) {
                 date: new Date().toISOString(),
                 statut: "en attente de paiement"
             };
+            if (acheteurConnecte) order.clientId = acheteurConnecte.id;
             await avecVerrouStore(async () => {
                 const store = await readStore();
                 store.orders = store.orders || [];

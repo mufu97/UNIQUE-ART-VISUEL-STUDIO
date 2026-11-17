@@ -222,3 +222,70 @@ test("publications simultanées : identifiants distincts, aucune perte", async (
     const toutes = await api("/api/discussions", { cookie: admin.cookie });
     for (const id of ids) assert.ok(toutes.json.some((d) => d.id === id), `discussion ${id} perdue`);
 });
+
+// --- Phase 0 : confidentialité des demandes et commandes ---
+
+function demande(email, message) {
+    return api("/api/discussions", { method: "POST", body: { name: "Expéditeur", email, type: "Demande de devis", message } });
+}
+
+test("confidentialité : un compte non vérifié ne voit pas les demandes envoyées avec son adresse", async () => {
+    const victime = nouveauClient();
+    assert.equal((await demande(victime.email, "Projet confidentiel, budget 2 millions")).status, 201);
+    // Un tiers ouvre un compte avec l'adresse de la victime (adresse non vérifiée).
+    const { cookie } = await inscrireEtConnecter(victime);
+    const discussions = await api("/api/client/discussions", { cookie });
+    assert.equal(discussions.status, 200);
+    assert.deepEqual(discussions.json, [], "aucune demande ne doit être visible sans vérification de l'adresse");
+    const session = await api("/api/client/session", { cookie });
+    assert.equal(session.json.emailVerifie, false);
+});
+
+test("confidentialité : une demande envoyée en étant connecté est rattachée au compte", async () => {
+    const { client, cookie } = await inscrireEtConnecter();
+    const envoi = await api("/api/discussions", {
+        method: "POST", cookie,
+        body: { name: client.nom, email: client.email, type: "Projet personnalisé", message: "Demande rattachée au compte" }
+    });
+    assert.equal(envoi.status, 201);
+    const discussions = await api("/api/client/discussions", { cookie });
+    assert.equal(discussions.json.length, 1);
+    assert.equal(discussions.json[0].message, "Demande rattachée au compte");
+    // Un autre compte ne la voit pas.
+    const autre = await inscrireEtConnecter();
+    assert.deepEqual((await api("/api/client/discussions", { cookie: autre.cookie })).json, []);
+});
+
+test("vérification de l'adresse : jeton à usage unique, puis accès aux demandes antérieures", async () => {
+    const client = nouveauClient();
+    assert.equal((await demande(client.email, "Demande envoyée avant l'inscription")).status, 201);
+    const { cookie } = await inscrireEtConnecter(client);
+    // Sans service d'e-mail configuré, l'envoi du lien est refusé honnêtement.
+    assert.equal((await api("/api/client/email-verification", { method: "POST", cookie })).status, 503);
+    assert.equal((await api("/api/client/email-verification", { method: "POST" })).status, 401);
+    assert.equal((await api("/api/email/verify", { method: "POST", body: { token: "invalide" } })).status, 400);
+
+    // Simule la réception de l'e-mail : on place l'empreinte d'un jeton connu dans le stockage.
+    const crypto = require("node:crypto");
+    const token = crypto.randomBytes(32).toString("base64url");
+    const fichier = path.join(dataDir, "store.json");
+    const store = JSON.parse(fs.readFileSync(fichier, "utf8"));
+    const compte = store.clients.find((item) => item.email === client.email);
+    compte.emailVerificationTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    compte.emailVerificationExpiresAt = Date.now() + 60000;
+    fs.writeFileSync(fichier, JSON.stringify(store));
+
+    assert.equal((await api("/api/email/verify", { method: "POST", body: { token } })).status, 200);
+    assert.equal((await api("/api/email/verify", { method: "POST", body: { token } })).status, 400, "jeton à usage unique");
+    assert.equal((await api("/api/client/session", { cookie })).json.emailVerifie, true);
+    const discussions = await api("/api/client/discussions", { cookie });
+    assert.equal(discussions.json.length, 1);
+    assert.equal(discussions.json[0].message, "Demande envoyée avant l'inscription");
+});
+
+test("traduction : la langue demandée par le site est bien prise en compte", async () => {
+    // Le site envoie « targetLanguage » : une langue non prise en charge doit être refusée
+    // (auparavant ce champ était ignoré et la traduction partait toujours vers l'anglais).
+    const reponse = await api("/api/translate", { method: "POST", body: { text: "Bonjour", targetLanguage: "xx" } });
+    assert.equal(reponse.status, 400);
+});

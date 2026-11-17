@@ -251,3 +251,21 @@ Chaque phase est commitée sur la branche de travail, testée, et documentée. *
 | 10 | Documentation technique et de déploiement, liste des obligations juridiques | D3, D4 |
 
 **Ce qui nécessitera une intervention humaine ou une configuration externe :** création des comptes Supabase, hébergeur, CinetPay et Resend ; saisie des secrets dans l'hébergeur ; achat et configuration DNS du domaine ; fourniture des fichiers des livres et des manuscrits ; formalités ARTCI ; validation juridique finale par un professionnel du droit ivoirien.
+
+---
+
+## 11. Phase 0 — correctifs urgents réalisés (17 novembre 2026)
+
+| Point | Correctif | Vérification |
+|---|---|---|
+| S1 (critique) | Les commandes et demandes sont rattachées au **compte** (`clientId`) lorsqu’elles sont créées en étant connecté. Celles qui ne portent qu’une adresse e-mail ne s’affichent qu’après **vérification de l’adresse** par lien à usage unique (24 h, empreinte seule conservée, limite de demandes). Nouvelles routes : `POST /api/client/email-verification`, `POST /api/email/verify`. Bloc « Confirmez votre adresse » dans l’espace client. | Tests 15 à 17 ; l’attaque de l’audit ne renvoie plus rien. |
+| Fuite locale | Une session administrateur copiait toutes les demandes privées des clients dans le stockage du navigateur. Ce n’est plus le cas, et l’ancienne copie est effacée au chargement. Le visiteur ne garde que ses propres demandes (20 au plus). | Contrôle dans un navigateur. |
+| B1 | Le serveur lit désormais la langue envoyée par le site. Le navigateur n’appelle plus MyMemory directement. Le bouton « Traduire », annoncé mais absent, a été ajouté sous chaque message. | Test 18. L’appel réel à MyMemory n’a pas pu être testé depuis l’environnement de développement (réseau restreint). |
+| Modération | L’API permettait de répondre, supprimer et bloquer, mais aucun bouton n’existait. Ces actions sont maintenant disponibles sur chaque demande en mode administrateur ; la réponse est envoyée par e-mail si Resend est configuré. | Parcours testé dans un navigateur. |
+| B2 | Le titre principal, le menu et le bouton « Demander un devis » sont lisibles dans les deux thèmes. | Captures bureau et mobile. |
+| B3 | Identifiant HTML en double corrigé (`nombreCreationsAdmin`). | — |
+| B4 | L’e-mail de réinitialisation est signé « Unique Art Visuel Studio » et non plus « Retrouve ». | — |
+
+**Effet sur les comptes existants :** les demandes et commandes envoyées sans être connecté restent masquées tant que le titulaire n’a pas confirmé son adresse. Pour envoyer le lien de confirmation, il faut que `RESEND_API_KEY`, `EMAIL_FROM` et `PUBLIC_BASE_URL` soient configurés. Sinon, le site l’indique clairement.
+
+**Limite connue :** une personne qui ouvre un compte avec l’adresse d’un tiers empêche ce tiers de s’inscrire avec la même adresse. Elle ne voit plus aucune de ses données. Ce point sera réglé lors de la refonte des comptes (phase 6).

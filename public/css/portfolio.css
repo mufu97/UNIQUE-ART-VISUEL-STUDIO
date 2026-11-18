@@ -1,16 +1,22 @@
+@font-face { font-family: "Cormorant Garamond"; src: url("../assets/fonts/cormorant-garamond-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Cormorant Garamond"; src: url("../assets/fonts/cormorant-garamond-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Cormorant Garamond"; src: url("../assets/fonts/cormorant-garamond-latin-500-italic.woff2") format("woff2"); font-weight: 500; font-style: italic; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("../assets/fonts/manrope-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("../assets/fonts/manrope-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("../assets/fonts/manrope-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
     color-scheme: dark;
-    --ink: #f5f3f7;
-    --ink-soft: #d7d3dc;
-    --muted: #aaa6b2;
-    --bg: #101116;
-    --bg-deep: #15161d;
-    --card: #191a22;
-    --line: #34343e;
-    --accent: #ff6a24;
-    --accent-2: #ff3d9a;
-    --serif: Georgia, "Times New Roman", serif;
-    --sans: "Segoe UI", system-ui, Arial, sans-serif;
+    --ink: #f3eee4;
+    --ink-soft: #e4ded2;
+    --muted: #a7a196;
+    --bg: #0a0a0b;
+    --bg-deep: #111113;
+    --card: #151517;
+    --line: rgba(217, 164, 65, .22);
+    --accent: #d9a441;
+    --accent-2: #f0c877;
+    --serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+    --sans: "Manrope", "Segoe UI", system-ui, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 90px; }
@@ -21,7 +27,7 @@ a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .skip-link { position: absolute; left: -999px; top: 8px; z-index: 20; padding: 8px 14px; background: var(--accent); color: #111; border-radius: 8px; }
 .skip-link:focus { left: 8px; }
 
-.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 10px max(20px, calc((100vw - 1100px) / 2)); background: rgba(16, 17, 22, .92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 10px max(20px, calc((100vw - 1100px) / 2)); background: rgba(10, 10, 11, .92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; flex: none; }
 .brand img { border-radius: 10px; }
 .brand span { display: flex; flex-direction: column; line-height: 1.1; }
@@ -43,8 +49,8 @@ h1 span { background: linear-gradient(90deg, var(--accent), var(--accent-2)); -w
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .button { display: inline-flex; align-items: center; min-height: 46px; padding: 10px 22px; border: 1px solid var(--line); border-radius: 999px; font-weight: 700; font-size: .9rem; text-decoration: none; }
 .button:hover { border-color: var(--accent); }
-.button.primary { background: var(--accent); border-color: var(--accent); color: #130c08; }
-.button.primary:hover { background: #ff8247; }
+.button.primary { background: var(--accent); border-color: var(--accent); color: #0a0a0b; }
+.button.primary:hover { background: #f0c877; }
 
 .block { width: min(1100px, calc(100% - 40px)); margin: auto; display: grid; grid-template-columns: 90px 1fr; gap: 10px 30px; padding: clamp(36px, 6vw, 64px) 0; border-top: 1px solid var(--line); }
 .num { font-family: var(--serif); font-size: 1.1rem; color: var(--accent); font-weight: 700; letter-spacing: .08em; margin: .6rem 0 0; }
@@ -70,7 +76,7 @@ blockquote { margin: 26px 0 0; padding: 4px 0 4px 22px; border-left: 3px solid v
 
 .steps { counter-reset: step; list-style: none; padding: 0; margin: 0 0 22px; display: grid; gap: 10px; }
 .steps li { counter-increment: step; display: flex; align-items: center; gap: 16px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
-.steps li::before { content: counter(step); flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #130c08; font-weight: 800; font-size: .85rem; }
+.steps li::before { content: counter(step); flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #0a0a0b; font-weight: 800; font-size: .85rem; }
 
 .who { font-size: 1.05rem; }
 .contact-list { display: grid; gap: 16px; margin: 24px 0 0; }

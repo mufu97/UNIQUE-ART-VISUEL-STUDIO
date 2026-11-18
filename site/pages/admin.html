@@ -1,0 +1,115 @@
+<!--{"titre":"Espace studio","description":"Espace d’administration réservé au studio.","chemin":"/admin","nav":"","robots":"noindex, nofollow","assistant":false,"scripts":["/js/catalogue.js","admin"]}-->
+<section class="heros-page">
+    <div class="conteneur">
+        <p class="surtitre">Accès réservé</p>
+        <h1>Espace studio</h1>
+    </div>
+</section>
+
+<section class="section" id="zoneConnexionAdmin" hidden>
+    <div class="conteneur">
+        <form id="formulaireAdmin" class="formulaire panneau" novalidate>
+            <h2>Connexion administrateur</h2>
+            <div class="champ"><label for="motDePasseAdmin">Clé d’administration</label><input id="motDePasseAdmin" name="password" type="password" autocomplete="current-password" required><span class="aide">Valeur de la variable ADMIN_API_KEY configurée sur le serveur.</span></div>
+            <button class="btn" type="submit">Se connecter</button>
+            <p class="statut" role="status" aria-live="polite"></p>
+        </form>
+    </div>
+</section>
+
+<section class="section" id="zoneAdmin" hidden>
+    <div class="conteneur admin-grille">
+        <nav class="admin-menu" aria-label="Rubriques de l’administration">
+            <a href="#tableau">Tableau de bord</a>
+            <a href="#demandes">Demandes clients</a>
+            <a href="#messagerie">Messagerie</a>
+            <a href="#publier-actualite">Actualités</a>
+            <a href="#publier-creation">Créations</a>
+            <a href="#bibliotheque-ia">Bibliothèque IA</a>
+            <a href="#services-externes">Services externes</a>
+            <button class="btn btn-discret" type="button" id="deconnexionAdmin">Se déconnecter</button>
+        </nav>
+        <div>
+            <div class="panneau" id="tableau">
+                <div class="element-entete"><h2>Tableau de bord</h2><button class="btn btn-discret" type="button" id="actualiserTableau">Actualiser</button></div>
+                <div class="indicateurs" id="indicateurs"></div>
+                <h3>Dernières activités</h3>
+                <ul class="liste-elements" id="activites"></ul>
+            </div>
+
+            <div class="panneau" id="demandes">
+                <div class="element-entete">
+                    <h2>Demandes clients</h2>
+                    <label class="case" for="langueTraduction">Traduire vers
+                        <select id="langueTraduction"><option value="en">anglais</option><option value="es">espagnol</option><option value="pt">portugais</option><option value="de">allemand</option><option value="ar">arabe</option></select>
+                    </label>
+                </div>
+                <ul class="liste-elements" id="listeDemandesAdmin"></ul>
+            </div>
+
+            <div class="panneau" id="messagerie">
+                <h2>Messagerie</h2>
+                <p class="mention-donnees">Messages reçus par le formulaire de contact et, si la réception est configurée, par e-mail.</p>
+                <ul class="liste-elements" id="boiteReception"></ul>
+            </div>
+
+            <div class="panneau" id="publier-actualite">
+                <h2>Publier une actualité</h2>
+                <form id="formulaireActualite" class="formulaire" novalidate>
+                    <div class="champs-2">
+                        <div class="champ"><label for="actualiteTitre">Titre</label><input id="actualiteTitre" name="title" required maxlength="150"></div>
+                        <div class="champ"><label for="actualiteType">Type</label>
+                            <select id="actualiteType" name="type" required>
+                                <option>Actualité du studio</option><option>Nouvelle publication</option><option>Événement</option><option>Salon</option><option>Coulisses de création</option><option>Communiqué</option><option>Annonce commerciale</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="champ"><label for="actualiteContenu">Texte</label><textarea id="actualiteContenu" name="content" required maxlength="2000"></textarea></div>
+                    <button class="btn" type="submit">Publier</button>
+                    <p class="statut" role="status" aria-live="polite"></p>
+                </form>
+            </div>
+
+            <div class="panneau" id="publier-creation">
+                <h2>Ajouter une création</h2>
+                <form id="formulaireCreation" class="formulaire" novalidate>
+                    <div class="champs-2">
+                        <div class="champ"><label for="creationTitre">Titre</label><input id="creationTitre" name="title" required maxlength="150"></div>
+                        <div class="champ"><label for="creationCategorie">Catégorie</label><select id="creationCategorie" name="category"></select></div>
+                    </div>
+                    <div class="champ"><label for="creationDescription">Description et intention artistique</label><textarea id="creationDescription" name="description" maxlength="2000"></textarea></div>
+                    <div class="champs-2">
+                        <div class="champ"><label for="creationImage">Image</label><input id="creationImage" name="image" type="file" accept="image/jpeg,image/png,image/webp"></div>
+                        <div class="champ"><label for="creationVideo">Vidéo <span class="aide">(facultatif)</span></label><input id="creationVideo" name="video" type="file" accept="video/mp4,video/webm"></div>
+                    </div>
+                    <div class="champ"><label for="creationPdf">PDF consultable <span class="aide">(facultatif, public)</span></label><input id="creationPdf" name="pdf" type="file" accept="application/pdf"></div>
+                    <p class="note">Les fichiers sont actuellement enregistrés dans la base de données du site : limitez chaque envoi à 4 Mo au total. Le stockage de fichiers dédié est prévu dans la suite de la refonte.</p>
+                    <button class="btn" type="submit">Publier la création</button>
+                    <p class="statut" role="status" aria-live="polite"></p>
+                </form>
+            </div>
+
+            <div class="panneau" id="bibliotheque-ia">
+                <h2>Bibliothèque de l’assistant IA</h2>
+                <p>Importez le texte intégral d’une œuvre : il est découpé en passages, indexé et consulté par l’assistant au moment de répondre. Le texte n’est pas publié sur le site et aucun modèle n’est réentraîné. Seuls les passages utiles à une question sont transmis au fournisseur d’IA configuré.</p>
+                <form id="formulaireBibliotheque" class="formulaire" novalidate>
+                    <div class="champs-2">
+                        <div class="champ"><label for="bibliothequeTitre">Titre de l’œuvre</label><input id="bibliothequeTitre" name="title" required maxlength="150" placeholder="Ex. Le Singularisme"></div>
+                        <div class="champ"><label for="bibliothequeFichier">Manuscrit PDF, TXT ou Markdown</label><input id="bibliothequeFichier" name="fichier" type="file" required accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"></div>
+                    </div>
+                    <p class="mention-donnees">Le PDF doit contenir du texte sélectionnable (sinon, faites d’abord une reconnaissance de caractères). N’importez que des œuvres dont le studio détient les droits.</p>
+                    <button class="btn" type="submit">Indexer l’œuvre</button>
+                    <p class="statut" role="status" aria-live="polite"></p>
+                </form>
+                <h3>Œuvres indexées</h3>
+                <ul class="liste-elements" id="listeBibliotheque"></ul>
+            </div>
+
+            <div class="panneau" id="services-externes">
+                <h2>Services externes</h2>
+                <p class="mention-donnees">État de la configuration du serveur (aucune clé n’est affichée).</p>
+                <dl class="fiche" id="etatServices"></dl>
+            </div>
+        </div>
+    </div>
+</section>

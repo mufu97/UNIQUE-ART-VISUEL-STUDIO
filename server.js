@@ -28,6 +28,9 @@ chargerVariablesLocales();
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
+// Les pages et images publiques sont dans public/ (servies directement par l'hébergeur en ligne).
+const PUBLIC_DIR = fs.existsSync(path.join(ROOT, "public")) ? path.join(ROOT, "public") : ROOT;
+const SUR_VERCEL = Boolean(process.env.VERCEL);
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -50,48 +53,69 @@ const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 120;
 const PASSWORD_RESET_WINDOW_MS = 15 * 60 * 1000;
 const PASSWORD_RESET_RATE_LIMIT = 5;
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const EMAIL_VERIFICATION_RATE_LIMIT = 5;
+const EMAIL_VERIFICATION_RESEND_DELAY_MS = 60 * 1000;
+const emailVerificationRequestCounts = new Map();
 const requestCounts = new Map();
 const passwordResetRequestCounts = new Map();
 const assistantRequestCounts = new Map();
-const adminSessions = new Map();
-const databasePool = process.env.DATABASE_URL
-    ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+// Les paramètres SSL de l'adresse (ex. « sslmode=require » ajouté par Supabase ou Vercel) sont retirés :
+// pg les interprète comme une vérification stricte du certificat, ce qui échoue avec le pooler Supabase.
+// Le chiffrement reste imposé par l'option « ssl » du pool ci-dessous.
+function adresseBaseDeDonnees(brute) {
+    if (!brute) return "";
+    try {
+        const url = new URL(brute);
+        for (const parametre of ["sslmode", "sslrootcert", "sslcert", "sslkey", "supa"]) url.searchParams.delete(parametre);
+        return url.toString();
+    } catch {
+        return brute;
+    }
+}
+const DATABASE_URL = adresseBaseDeDonnees(process.env.DATABASE_URL || process.env.POSTGRES_URL || "");
+const databasePool = DATABASE_URL
+    ? new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false }, max: SUR_VERCEL ? 3 : 10 })
     : null;
+// En ligne (Vercel), le disque n'est pas persistant : sans base PostgreSQL, rien ne peut être enregistré.
+const STOCKAGE_DISPONIBLE = Boolean(databasePool) || !SUR_VERCEL;
+const STORE_VIDE = () => ({ clients: [], discussions: [], orders: [], creations: [], actualites: [] });
 const CLIENT_SESSION_SECRET = String(process.env.CLIENT_SESSION_SECRET || process.env.ADMIN_API_KEY || "").trim()
     || (IS_PRODUCTION ? "" : crypto.randomBytes(32).toString("hex"));
 
 if (IS_PRODUCTION && !process.env.ADMIN_API_KEY) {
     throw new Error("ADMIN_API_KEY doit être configurée en production.");
 }
+// Seuls ces types de fichiers du dossier public/ sont servis ; tout le reste répond 404.
 const MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
-    ".svg": "image/svg+xml"
+    ".svg": "image/svg+xml",
+    ".woff2": "font/woff2",
+    ".xml": "application/xml; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8"
 };
-const PUBLIC_ROOT_FILES = new Set([
-    "index.html",
-    "style.css",
-    "script.js",
-    "conditions-utilisation.html",
-    "confidentialite.html",
-    "mentions-legales.html",
-    "appareils.html",
-    "appareils.css",
-    "appareils.js",
-    "assistance-appareils.html",
-    "assistance-appareils.css",
-    "assistance-appareils.js",
-    "portfolio.html",
-    "portfolio.css",
-    "portfolio.js"
-]);
-const PUBLIC_ASSET_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".svg", ".webp"]);
+// Politique de sécurité du contenu : scripts, styles et polices proviennent uniquement du site.
+// Les images et vidéos importées par le studio peuvent être des données « data: » ou « blob: ».
+const CONTENT_SECURITY_POLICY = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "media-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "frame-src blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'"
+].join("; ");
 const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intrigues?|personnages?|chapitres?|extraits?|passages?|histoires?|themes?|singularisme|pouvoir des mots|fins?|resumes?|interpretations?|textes?)\b/;
 
 const CATALOGUE_PAIEMENT = Object.freeze({
@@ -117,6 +141,7 @@ async function readStore() {
         return result.rows[0]?.payload || { clients: [], discussions: [], orders: [], creations: [], actualites: [] };
     }
 
+    if (!STOCKAGE_DISPONIBLE) return STORE_VIDE();
     ensureStore();
     return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
 }
@@ -130,6 +155,9 @@ async function writeStore(store) {
         return;
     }
 
+    if (!STOCKAGE_DISPONIBLE) {
+        throw new Error("L'enregistrement n'est pas encore disponible : la base de données du site n'est pas configurée.");
+    }
     const temporaryFile = `${DATA_FILE}.tmp`;
     fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2));
     fs.renameSync(temporaryFile, DATA_FILE);
@@ -164,17 +192,25 @@ async function mettreAJourCommande(commandeId, modification) {
 
 async function initialiserStockage() {
     if (!databasePool) {
-        ensureStore();
+        if (STOCKAGE_DISPONIBLE) ensureStore();
         return;
     }
 
     await databasePool.query("CREATE TABLE IF NOT EXISTS app_store (id integer PRIMARY KEY, payload jsonb NOT NULL)");
+    // Supabase expose le schéma public via son API (clé « anon ») : la sécurité par ligne, sans
+    // aucune politique, y interdit tout accès. Le serveur, connecté en propriétaire, n'est pas concerné.
+    await databasePool.query("ALTER TABLE app_store ENABLE ROW LEVEL SECURITY");
+    await databasePool.query(`DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+            REVOKE ALL ON TABLE app_store FROM anon, authenticated;
+        END IF;
+    END $$`);
     const result = await databasePool.query("SELECT id FROM app_store WHERE id = 1");
     if (result.rowCount === 0) {
-        ensureStore();
+        const initial = fs.existsSync(DATA_FILE) ? fs.readFileSync(DATA_FILE, "utf8") : JSON.stringify(STORE_VIDE());
         await databasePool.query(
-            "INSERT INTO app_store (id, payload) VALUES (1, $1::jsonb)",
-            [fs.readFileSync(DATA_FILE, "utf8")]
+            "INSERT INTO app_store (id, payload) VALUES (1, $1::jsonb) ON CONFLICT (id) DO NOTHING",
+            [initial]
         );
     }
 }
@@ -666,17 +702,84 @@ function limiterReinitialisationMotDePasseAtteint(request) {
     return current.count > PASSWORD_RESET_RATE_LIMIT;
 }
 
-function urlPubliqueReinitialisationMotDePasse() {
-    const base = String(process.env.PUBLIC_BASE_URL || "").trim();
+// Origine publique du site (sans chemin). En développement, l'adresse locale sert de repli.
+function originePublique({ repliLocal = false } = {}) {
+    const base = String(process.env.PUBLIC_BASE_URL || "").trim()
+        || (repliLocal && !IS_PRODUCTION ? `http://localhost:${PORT}` : "");
     if (!base) return "";
     try {
         const url = new URL(base);
         if (!["http:", "https:"].includes(url.protocol) || (IS_PRODUCTION && url.protocol !== "https:")
             || url.username || url.password || url.search || url.hash) return "";
-        return `${url.origin}/appareils.html`;
+        return url.origin;
     } catch {
         return "";
     }
+}
+
+function urlPubliqueReinitialisationMotDePasse() {
+    const origine = originePublique();
+    return origine ? `${origine}/compte` : "";
+}
+
+function limiteVerificationEmailAtteinte(request) {
+    const maintenant = Date.now();
+    const adresse = getClientAddress(request);
+    if (emailVerificationRequestCounts.size > 10000) {
+        for (const [cle, entree] of emailVerificationRequestCounts) {
+            if (maintenant - entree.startedAt > PASSWORD_RESET_WINDOW_MS) emailVerificationRequestCounts.delete(cle);
+        }
+    }
+    const fenetre = emailVerificationRequestCounts.get(adresse);
+    if (!fenetre || maintenant - fenetre.startedAt > PASSWORD_RESET_WINDOW_MS) {
+        emailVerificationRequestCounts.set(adresse, { startedAt: maintenant, count: 1 });
+        return false;
+    }
+    fenetre.count += 1;
+    return fenetre.count > EMAIL_VERIFICATION_RATE_LIMIT;
+}
+
+// Prépare un nouveau jeton de vérification d'adresse : seul son empreinte est conservée.
+function preparerVerificationEmail(compte) {
+    const token = crypto.randomBytes(32).toString("base64url");
+    compte.emailVerificationTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    compte.emailVerificationExpiresAt = Date.now() + EMAIL_VERIFICATION_TTL_MS;
+    compte.emailVerificationSentAt = Date.now();
+    return token;
+}
+
+function emailVerificationDisponible() {
+    return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && originePublique({ repliLocal: true }));
+}
+
+async function envoyerEmailVerification(client, token) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    const origine = originePublique({ repliLocal: true });
+    if (!apiKey || !from || !origine) return false;
+    const lien = `${origine}/compte?verifier_email=${encodeURIComponent(token)}`;
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+            from,
+            to: [client.email],
+            subject: "Confirmez votre adresse e-mail — Unique Art Visuel Studio",
+            text: `Bonjour ${client.nom},\n\nPour activer votre espace client Unique Art Visuel Studio et retrouver vos demandes et commandes, confirmez votre adresse dans les 24 heures : ${lien}\n\nSi vous n'avez pas créé de compte, ignorez cet e-mail.`,
+            html: `<p>Bonjour ${echapperEmail(client.nom)},</p><p>Pour activer votre espace client Unique Art Visuel Studio et retrouver vos demandes et commandes, confirmez votre adresse e-mail.</p><p><a href="${echapperEmail(lien)}">Confirmer mon adresse e-mail</a></p><p>Ce lien expire dans 24 heures. Si vous n’avez pas créé de compte, ignorez cet e-mail.</p>`
+        }),
+        signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) throw new Error(`Le fournisseur d’e-mail a répondu avec le statut ${response.status}.`);
+    return true;
+}
+
+// Une donnée (commande, demande) appartient au compte si elle y a été rattachée à la création,
+// ou si elle porte son adresse e-mail ET que cette adresse a été vérifiée par le titulaire.
+function appartientAuClient(element, client) {
+    if (element.clientId !== undefined && element.clientId !== null) return String(element.clientId) === String(client.id);
+    return client.emailVerifie === true
+        && String(element.email || "").trim().toLowerCase() === client.email;
 }
 
 async function envoyerEmailReinitialisationMotDePasse(client, resetUrl) {
@@ -693,9 +796,9 @@ async function envoyerEmailReinitialisationMotDePasse(client, resetUrl) {
         body: JSON.stringify({
             from,
             to: [client.email],
-            subject: "Réinitialisation de votre mot de passe Retrouve",
+            subject: "Réinitialisation de votre mot de passe — Unique Art Visuel Studio",
             text: `Une demande de réinitialisation a été faite pour votre compte. Ouvrez ce lien dans les 30 minutes : ${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.`,
-            html: `<p>Une demande de réinitialisation a été faite pour votre compte Retrouve.</p><p><a href="${echapperEmail(resetUrl)}">Choisir un nouveau mot de passe</a></p><p>Ce lien expire dans 30 minutes. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.</p>`
+            html: `<p>Une demande de réinitialisation a été faite pour votre compte Unique Art Visuel Studio.</p><p><a href="${echapperEmail(resetUrl)}">Choisir un nouveau mot de passe</a></p><p>Ce lien expire dans 30 minutes. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.</p>`
         }),
         signal: AbortSignal.timeout(15000)
     });
@@ -953,14 +1056,42 @@ async function verifierTransactionCinetPay(transactionId) {
     return response.json();
 }
 
+function cleSessionAdmin() {
+    const cle = String(process.env.ADMIN_API_KEY || "");
+    return cle ? crypto.createHmac("sha256", cle).update("unique-art-admin-session-v1").digest() : null;
+}
+
+function creerSessionAdmin() {
+    const charge = Buffer.from(JSON.stringify({
+        role: "admin",
+        nonce: crypto.randomBytes(16).toString("hex"),
+        expireLe: Date.now() + 12 * 60 * 60 * 1000
+    })).toString("base64url");
+    const signature = crypto.createHmac("sha256", cleSessionAdmin()).update(charge).digest("base64url");
+    return `${charge}.${signature}`;
+}
+
 function isAdminRequest(request) {
+    const cle = cleSessionAdmin();
+    if (!cle) return false;
     const cookie = String(request.headers.cookie || "").split(";").map((value) => value.trim())
         .find((value) => value.startsWith("unique_art_admin="));
-    const sessionId = cookie?.slice("unique_art_admin=".length);
-    const session = sessionId ? adminSessions.get(sessionId) : null;
-    if (session && session.expiresAt > Date.now()) return true;
-    if (sessionId) adminSessions.delete(sessionId);
-    return false;
+    const [charge, signature] = (cookie?.slice("unique_art_admin=".length) || "").split(".");
+    if (!charge || !signature) return false;
+    const attendue = crypto.createHmac("sha256", cle).update(charge).digest();
+    let recue;
+    try {
+        recue = Buffer.from(signature, "base64url");
+    } catch {
+        return false;
+    }
+    if (recue.length !== attendue.length || !crypto.timingSafeEqual(recue, attendue)) return false;
+    try {
+        const session = JSON.parse(Buffer.from(charge, "base64url").toString("utf8"));
+        return session.role === "admin" && session.expireLe > Date.now();
+    } catch {
+        return false;
+    }
 }
 
 async function handleApi(request, response, url) {
@@ -970,7 +1101,88 @@ async function handleApi(request, response, url) {
             sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
             return true;
         }
-        sendJson(response, 200, { id: client.id, nom: client.nom, email: client.email, telephone: client.telephone });
+        sendJson(response, 200, {
+            id: client.id, nom: client.nom, email: client.email, telephone: client.telephone,
+            emailVerifie: client.emailVerifie === true
+        });
+        return true;
+    }
+
+    if (url.pathname === "/api/client/email-verification" && request.method === "POST") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+        if (client.emailVerifie === true) {
+            sendJson(response, 200, { ok: true, dejaVerifie: true });
+            return true;
+        }
+        if (limiteVerificationEmailAtteinte(request)) {
+            sendJson(response, 429, { error: "Trop de demandes. Réessayez dans quelques minutes." }, { "Retry-After": "900" });
+            return true;
+        }
+        if (!emailVerificationDisponible()) {
+            sendJson(response, 503, { error: "L’envoi d’e-mails n’est pas encore configuré : la vérification de l’adresse est momentanément indisponible." });
+            return true;
+        }
+        const preparation = await avecVerrouStore(async () => {
+            const store = await readStore();
+            const compte = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!compte) return { erreur: 401 };
+            if (Date.now() - (Number(compte.emailVerificationSentAt) || 0) < EMAIL_VERIFICATION_RESEND_DELAY_MS) return { erreur: 429 };
+            const token = preparerVerificationEmail(compte);
+            await writeStore(store);
+            return { compte: { ...compte }, token };
+        });
+        if (preparation.erreur === 401) {
+            sendJson(response, 401, { error: "Veuillez vous reconnecter à votre compte client." });
+            return true;
+        }
+        if (preparation.erreur === 429) {
+            sendJson(response, 429, { error: "Un lien vient d’être envoyé. Patientez une minute avant d’en demander un autre." }, { "Retry-After": "60" });
+            return true;
+        }
+        try {
+            await envoyerEmailVerification(preparation.compte, preparation.token);
+        } catch (error) {
+            console.error("E-mail de vérification non envoyé:", error.message);
+            sendJson(response, 502, { error: "L’e-mail de vérification n’a pas pu être envoyé. Réessayez plus tard." });
+            return true;
+        }
+        sendJson(response, 202, { ok: true, message: "Un lien de vérification a été envoyé à votre adresse. Vérifiez aussi vos courriers indésirables." });
+        return true;
+    }
+
+    if (url.pathname === "/api/email/verify" && request.method === "POST") {
+        readBody(request, MAX_CLIENT_RECOVERY_BODY_SIZE).then(async (body) => {
+            const token = String(body.token || "");
+            if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+                sendJson(response, 400, { error: "Le lien de vérification est invalide ou expiré." });
+                return;
+            }
+            const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+            const verifie = await avecVerrouStore(async () => {
+                const store = await readStore();
+                const compte = store.clients.find((item) => item.emailVerificationTokenHash === tokenHash
+                    && Number(item.emailVerificationExpiresAt) > Date.now());
+                if (!compte) return false;
+                compte.emailVerifie = true;
+                compte.emailVerifieLe = new Date().toISOString();
+                delete compte.emailVerificationTokenHash;
+                delete compte.emailVerificationExpiresAt;
+                await writeStore(store);
+                return true;
+            });
+            if (!verifie) {
+                sendJson(response, 400, { error: "Le lien de vérification est invalide ou expiré. Connectez-vous pour en demander un nouveau." });
+                return;
+            }
+            sendJson(response, 200, { ok: true, message: "Votre adresse e-mail est confirmée." });
+        }).catch((error) => {
+            const status = error.message === "Payload trop volumineux" ? 413 : 400;
+            sendJson(response, status, { error: status === 413 ? "La demande est trop volumineuse." : error.message });
+        });
         return true;
     }
 
@@ -1455,7 +1667,7 @@ async function handleApi(request, response, url) {
         }
         const store = await readStore();
         const commandes = (store.orders || [])
-            .filter((order) => String(order.email || "").trim().toLowerCase() === client.email)
+            .filter((order) => appartientAuClient(order, client))
             .sort((left, right) => new Date(right.date) - new Date(left.date))
             .map((order) => ({ produit: order.produit, prix: order.prix, statut: order.statut, date: order.date }));
         sendJson(response, 200, commandes);
@@ -1470,7 +1682,7 @@ async function handleApi(request, response, url) {
         }
         const store = await readStore();
         const discussions = (store.discussions || [])
-            .filter((discussion) => String(discussion.email || "").trim().toLowerCase() === client.email)
+            .filter((discussion) => appartientAuClient(discussion, client))
             .sort((left, right) => new Date(right.date) - new Date(left.date))
             .map(({ id, name, type, message, date, replies }) => ({
                 id, name, type, message, date,
@@ -1499,11 +1711,7 @@ async function handleApi(request, response, url) {
                 sendJson(response, 401, { error: "Mot de passe administrateur incorrect." });
                 return;
             }
-            const sessionId = crypto.randomBytes(32).toString("hex");
-            adminSessions.set(sessionId, { expiresAt: Date.now() + 12 * 60 * 60 * 1000 });
-            for (const [id, session] of adminSessions) {
-                if (session.expiresAt <= Date.now()) adminSessions.delete(id);
-            }
+            const sessionId = creerSessionAdmin();
             response.writeHead(200, {
                 "Content-Type": "application/json; charset=utf-8",
                 "Cache-Control": "no-store",
@@ -1515,9 +1723,6 @@ async function handleApi(request, response, url) {
     }
 
     if (url.pathname === "/api/admin/session" && request.method === "DELETE") {
-        const cookie = String(request.headers.cookie || "").split(";").map((value) => value.trim())
-            .find((value) => value.startsWith("unique_art_admin="));
-        if (cookie) adminSessions.delete(cookie.slice("unique_art_admin=".length));
         response.writeHead(204, {
             "Cache-Control": "no-store",
             "Set-Cookie": `unique_art_admin=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0${IS_PRODUCTION ? "; Secure" : ""}`
@@ -1707,12 +1912,14 @@ async function handleApi(request, response, url) {
         sendJson(response, 200, {
             ok: true,
             service: "unique-art-backend",
+            storage: STOCKAGE_DISPONIBLE ? (databasePool ? "postgresql" : "fichier-local") : "non-configure",
             providers: {
                 emailSending: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
                 emailReceiving: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_WEBHOOK_SECRET),
                 passwordRecovery: Boolean(
                     process.env.RESEND_API_KEY && process.env.EMAIL_FROM && urlPubliqueReinitialisationMotDePasse()
                 ),
+                emailVerification: emailVerificationDisponible(),
                 payments: Boolean(configurationPaiement()),
                 writingAssistant: Boolean(configurationAssistant())
             }
@@ -1981,7 +2188,8 @@ async function handleApi(request, response, url) {
     if (request.method === "POST" && url.pathname === "/api/translate") {
         readBody(request).then(async (body) => {
             const texte = String(body.text || "").trim();
-            const langue = String(body.language || "en").trim().toLowerCase();
+            // Le site envoie « targetLanguage » ; « language » reste accepté pour compatibilité.
+            const langue = String(body.targetLanguage || body.language || "en").trim().toLowerCase();
             const languesAutorisees = ["en", "es", "pt", "de", "ar"];
 
             if (!texte || !languesAutorisees.includes(langue)) {
@@ -2090,6 +2298,7 @@ async function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/discussions") {
+        const auteurConnecte = await obtenirClientConnecte(request);
         readBody(request).then((body) => avecVerrouStore(async () => {
             if (!String(body.name || "").trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email || "").trim())
                 || !String(body.type || "").trim() || !String(body.message || "").trim()) {
@@ -2114,6 +2323,7 @@ async function handleApi(request, response, url) {
                 date: new Date().toISOString(),
                 replies: []
             };
+            if (auteurConnecte) discussion.clientId = auteurConnecte.id;
             store.discussions.push(discussion);
             await writeStore(store);
             sendJson(response, 201, discussion);
@@ -2227,11 +2437,13 @@ async function handleApi(request, response, url) {
                     email,
                     motDePasseHash,
                     telephone,
+                    emailVerifie: false,
                     creeLe: new Date().toISOString()
                 };
+                const token = emailVerificationDisponible() ? preparerVerificationEmail(nouveau) : null;
                 store.clients.push(nouveau);
                 await writeStore(store);
-                return nouveau;
+                return { ...nouveau, token };
             });
             if (!client) {
                 sendJson(response, 409, { error: "Cette adresse e-mail est déjà utilisée." });
@@ -2239,11 +2451,13 @@ async function handleApi(request, response, url) {
             }
             let emailEnvoye = false;
             try {
-                emailEnvoye = await envoyerEmailConfirmation(client);
+                emailEnvoye = client.token
+                    ? await envoyerEmailVerification(client, client.token)
+                    : await envoyerEmailConfirmation(client);
             } catch (error) {
-                console.error("E-mail de confirmation non envoyé:", error.message);
+                console.error("E-mail de vérification non envoyé:", error.message);
             }
-            sendJson(response, 201, { ok: true, emailEnvoye });
+            sendJson(response, 201, { ok: true, emailEnvoye, verificationRequise: true });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
@@ -2281,13 +2495,15 @@ async function handleApi(request, response, url) {
                 id: client.id,
                 nom: client.nom,
                 email: client.email,
-                telephone: client.telephone
+                telephone: client.telephone,
+                emailVerifie: client.emailVerifie === true
             }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id, client.sessionVersion || 0)) });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
     if (request.method === "POST" && url.pathname === "/api/orders") {
+        const acheteurConnecte = await obtenirClientConnecte(request);
         readBody(request).then(async (body) => {
             const nom = String(body.nom || "").trim().slice(0, 100);
             const email = String(body.email || "").trim().toLowerCase().slice(0, 150);
@@ -2316,6 +2532,7 @@ async function handleApi(request, response, url) {
                 date: new Date().toISOString(),
                 statut: "en attente de paiement"
             };
+            if (acheteurConnecte) order.clientId = acheteurConnecte.id;
             await avecVerrouStore(async () => {
                 const store = await readStore();
                 store.orders = store.orders || [];
@@ -2349,7 +2566,7 @@ async function handleApi(request, response, url) {
                         customer_city: "Abidjan",
                         customer_country: "CI",
                         channels: "ALL",
-                        return_url: `${configuration.baseUrl}/?paiement=retour`,
+                        return_url: `${configuration.baseUrl}/boutique?paiement=retour&commande=${transactionId}`,
                         notify_url: `${configuration.baseUrl}/api/payments/notify`,
                         metadata: transactionId
                     }),
@@ -2386,6 +2603,44 @@ async function handleApi(request, response, url) {
     return true;
 }
 
+function envoyerFichier(request, response, filePath, status = 200) {
+    const extension = path.extname(filePath).toLowerCase();
+    const headers = { "Content-Type": MIME_TYPES[extension] };
+    headers["Cache-Control"] = extension === ".html"
+        ? "no-cache"
+        : [".js", ".css", ".woff2"].includes(extension)
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=604800, stale-while-revalidate=86400";
+    if (extension === ".html") headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY;
+    const compressible = [".html", ".js", ".css", ".svg", ".xml", ".txt"].includes(extension);
+    const acceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(String(request.headers["accept-encoding"] || ""));
+    if (compressible) headers.Vary = "Accept-Encoding";
+    if (compressible && acceptsGzip && fs.statSync(filePath).size > 1024) {
+        headers["Content-Encoding"] = "gzip";
+        response.writeHead(status, headers);
+        fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(response);
+        return;
+    }
+    response.writeHead(status, headers);
+    fs.createReadStream(filePath).pipe(response);
+}
+
+// Résout une adresse vers un fichier de public/ : « /creations » sert creations.html (adresses propres).
+function resoudreFichierPublic(cheminDecode) {
+    const relatif = (cheminDecode === "/" ? "/index.html" : cheminDecode.replace(/\/+$/, ""))
+        .replace(/^[/\\]+/, "").split(/[\\/]+/).join(path.sep);
+    if (!relatif || relatif.split(path.sep).some((segment) => segment.startsWith("."))) return null;
+    const candidats = path.extname(relatif) ? [relatif] : [`${relatif}.html`];
+    for (const candidat of candidats) {
+        const filePath = path.resolve(PUBLIC_DIR, candidat);
+        const relativeFilePath = path.relative(PUBLIC_DIR, filePath);
+        const dansPublic = relativeFilePath && !relativeFilePath.startsWith("..") && !path.isAbsolute(relativeFilePath);
+        if (dansPublic && MIME_TYPES[path.extname(filePath).toLowerCase()]
+            && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) return filePath;
+    }
+    return null;
+}
+
 function serveFile(request, response, url) {
     let decodedPath;
     try {
@@ -2395,46 +2650,29 @@ function serveFile(request, response, url) {
         response.end("Adresse invalide");
         return;
     }
-    const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
-    const relativeRequestPath = requestedPath.replace(/^[/\\]+/, "").split(/[\\/]+/).join(path.sep);
-    const filePath = path.resolve(ROOT, relativeRequestPath);
-    const relativeFilePath = path.relative(ROOT, filePath);
-    const relativeFilePathPortable = relativeFilePath.split(path.sep).join("/").toLowerCase();
-    const isInsideRoot = relativeFilePath !== ".."
-        && !relativeFilePath.startsWith(`..${path.sep}`)
-        && !path.isAbsolute(relativeFilePath);
-    const isPublicRootFile = PUBLIC_ROOT_FILES.has(relativeFilePathPortable);
-    const isPublicAsset = relativeFilePathPortable.startsWith("assets/")
-        && PUBLIC_ASSET_EXTENSIONS.has(path.extname(relativeFilePathPortable));
-
-    if (!isInsideRoot || (!isPublicRootFile && !isPublicAsset)
-        || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-        response.end("Page introuvable");
+    // Les anciennes adresses en .html redirigent vers leur version propre (comme sur l'hébergeur).
+    if (/^\/[a-z0-9-]+\.html$/i.test(decodedPath) && decodedPath !== "/404.html"
+        && !["/appareils.html", "/assistance-appareils.html"].includes(decodedPath)) {
+        const cible = decodedPath === "/index.html" ? "/" : decodedPath.slice(0, -5);
+        response.writeHead(308, { Location: `${cible}${url.search}` });
+        response.end();
         return;
     }
-
-    const extension = path.extname(filePath).toLowerCase();
-    const headers = { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" };
-    headers["Cache-Control"] = extension === ".html"
-        ? "no-cache"
-        : [".js", ".css"].includes(extension)
-            ? "public, max-age=31536000, immutable"
-            : "public, max-age=604800, stale-while-revalidate=86400";
-    const compressible = [".html", ".js", ".css", ".svg"].includes(extension);
-    const acceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(String(request.headers["accept-encoding"] || ""));
-    if (compressible) headers.Vary = "Accept-Encoding";
-    if (compressible && acceptsGzip && fs.statSync(filePath).size > 1024) {
-        headers["Content-Encoding"] = "gzip";
-        response.writeHead(200, headers);
-        fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(response);
+    const filePath = resoudreFichierPublic(decodedPath);
+    if (filePath) {
+        envoyerFichier(request, response, filePath);
         return;
     }
-    response.writeHead(200, headers);
-    fs.createReadStream(filePath).pipe(response);
+    const page404 = path.join(PUBLIC_DIR, "404.html");
+    if (fs.existsSync(page404)) {
+        envoyerFichier(request, response, page404, 404);
+        return;
+    }
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Page introuvable");
 }
 
-initialiserStockage().then(() => http.createServer((request, response) => {
+function traiterRequete(request, response) {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
     if (request.method === "OPTIONS") {
@@ -2470,8 +2708,32 @@ initialiserStockage().then(() => http.createServer((request, response) => {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "SAMEORIGIN");
     response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.setHeader("Permissions-Policy", "camera=(), payment=(), usb=(), microphone=(self), geolocation=(self)");
     serveFile(request, response, url);
-}).listen(PORT, "0.0.0.0", () => {
+}
+
+let stockagePret = null;
+function preparerStockage() {
+    if (!stockagePret) {
+        stockagePret = initialiserStockage().catch((error) => {
+            stockagePret = null;
+            throw error;
+        });
+    }
+    return stockagePret;
+}
+
+// Point d'entrée pour un hébergement sans serveur (Vercel) : api/index.js exporte cette fonction.
+function gestionnaire(request, response) {
+    preparerStockage().then(() => traiterRequete(request, response)).catch((error) => {
+        console.error("Impossible d'initialiser le stockage:", error);
+        if (!response.headersSent) sendJson(response, 503, { error: "Le service est momentanément indisponible." });
+    });
+}
+
+module.exports = gestionnaire;
+
+if (require.main === module) preparerStockage().then(() => http.createServer(traiterRequete).listen(PORT, "0.0.0.0", () => {
     console.log(`Unique Art Studio disponible sur http://localhost:${PORT}`);
     const adressesReseau = Object.values(os.networkInterfaces())
         .flatMap((interfaces) => interfaces || [])

@@ -3597,3 +3597,42 @@ footer { border-top: 1px solid var(--coral); background: #0b0c10; }
     .cinema-shot:not(.cinema-shot-one) { opacity: 0; }
     .cinema-shot img { animation: none; }
 }
+
+/* =========================================================
+   PHASE 0 — CORRECTIFS DE LISIBILITÉ ET NOUVEAUX ÉLÉMENTS
+   La barre de navigation et le bandeau d'accueil gardent un fond sombre
+   dans les deux thèmes : leur texte utilise une couleur claire fixe
+   au lieu de --paper (presque noir en thème sombre).
+   ========================================================= */
+:root { --on-dark: #f6f1e7; }
+.navbar nav a,
+.hero h1,
+.hero .secondaire { color: var(--on-dark); }
+.hero .secondaire { border-color: var(--on-dark); }
+.navbar nav a:hover,
+.navbar nav a[aria-current="location"] { color: var(--coral); }
+
+.client-email-verification {
+    margin: 16px 0;
+    padding: 14px 16px;
+    border: 1px solid var(--surface-border);
+    border-left: 3px solid var(--sun);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+}
+.client-email-verification p { margin: 0 0 10px; }
+
+.discussion-meta { font-size: .85rem; color: var(--muted); }
+.discussion-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.discussion-actions .secondary-button { width: auto; margin: 0; padding: 8px 14px; font-size: .85rem; }
+.discussion-translation {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--teal);
+    background: var(--surface);
+    color: var(--ink);
+}
+.discussion-reply-form { display: grid; gap: 8px; margin-top: 12px; }
+.discussion-reply-form textarea { min-height: 90px; }
+.discussion-reply-form[hidden], .client-email-verification[hidden], .discussion-translation[hidden] { display: none; }

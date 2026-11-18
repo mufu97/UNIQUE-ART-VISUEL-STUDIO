@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /compte
+Disallow: /api/
+
+Sitemap: https://unique-art-visuel-studio.vercel.app/sitemap.xml

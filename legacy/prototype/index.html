@@ -12,7 +12,7 @@
     <meta property="og:description" content="Illustration, bande dessinée et univers visuels originaux. Découvrons votre prochain projet ensemble.">
     <meta property="og:image" content="assets/brand/unique-art-studio.jpg">
     <link rel="icon" type="image/jpeg" href="assets/brand/unique-art-emblem.jpg">
-    <link rel="stylesheet" href="style.css?v=20261021-assistant-history-voice-v2">
+    <link rel="stylesheet" href="style.css?v=20261117-phase0">
 </head>
 
 <body>
@@ -94,7 +94,6 @@
             <a href="#boutique" data-section="boutique">Prestations</a>
             <a href="#tarifs" data-section="tarifs">Tarifs</a>
             <a href="#apropos" data-section="apropos">Le studio</a>
-            <a href="/portfolio.html">Portfolio d’Ando</a>
             <a href="#investisseurs" data-section="investisseurs">Investisseurs</a>
             <a href="#contact" data-section="contact">Contact</a>
             <a href="/appareils.html">Mes appareils</a>
@@ -444,6 +443,11 @@
                         <p class="client-session-label">Votre espace client</p>
                         <strong id="clientSessionName"></strong>
                         <span id="clientSessionEmail"></span>
+                        <div id="clientEmailVerification" class="client-email-verification" hidden>
+                            <p>Confirmez votre adresse e-mail pour retrouver les demandes et commandes envoyées avant votre connexion. Par sécurité, elles restent masquées tant que l’adresse n’est pas vérifiée.</p>
+                            <button id="clientEmailVerificationButton" type="button" class="secondary-button" onclick="demanderVerificationEmail()">Recevoir le lien de confirmation</button>
+                            <p id="clientEmailVerificationStatus" class="status-message" aria-live="polite"></p>
+                        </div>
                         <div class="client-orders">
                             <h4>Mes commandes</h4>
                             <div id="clientOrdersList" aria-live="polite">Chargement de vos commandes…</div>
@@ -525,8 +529,7 @@
                             <option value="de">Deutsch</option>
                             <option value="ar">العربية</option>
                         </select>
-                        <small>Utilisez “Traduire” sous un message pour le lire instantanément dans cette
-                            langue.</small>
+                        <small>Utilisez « Traduire » sous un message pour le lire dans cette langue. Le texte est alors transmis au service de traduction MyMemory.</small>
                     </div>
 
                     <input id="discussionNom" type="text" placeholder="Votre nom ou pseudo" required>
@@ -872,7 +875,7 @@
 
             <div class="admin-stats">
                 <div class="stat-card">
-                    <span id="nombreCreations">0</span>
+                    <span id="nombreCreationsAdmin">0</span>
                     <p>Créations en ligne</p>
                 </div>
                 <div class="stat-card">
@@ -1095,7 +1098,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20261028-browser-speech-v1"></script>
+    <script src="script.js?v=20261117-phase0"></script>
 </body>
 
 </html>

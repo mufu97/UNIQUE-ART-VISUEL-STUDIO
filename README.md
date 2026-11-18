@@ -1,5 +1,31 @@
 # Unique Art Visuel Studio
 
+> « Là où le dessin pense » — L’excellence, notre Leitmotiv.
+
+## Structure du site (refonte noir et or)
+
+| Dossier / fichier | Rôle |
+|---|---|
+| `server.js`, `api/index.js` | Serveur Node.js : API `/api/*` et service des pages (en local) ; fonction serverless sur Vercel |
+| `site/pages/*.html` | **Gabarits des pages** (contenu de chaque page). C’est ici que l’on modifie les textes. |
+| `site/contact.json` | Coordonnées publiques (e-mail, téléphones, WhatsApp) insérées dans les pages |
+| `tools/generer-pages.js` | Assemble les gabarits avec l’en-tête, le pied de page et les métadonnées SEO, et produit `public/*.html`, `sitemap.xml` et `robots.txt` |
+| `public/` | Site publié tel quel (pages générées, `css/studio.css`, `js/`, `assets/`) |
+| `public/js/core.js`, `assistant.js`, `catalogue.js`, `pages/*.js` | Fonctions communes, assistant de lecture IA, contenus de référence, script de chaque page |
+| `legacy/prototype/` | Archive de l’ancienne page unique (non publiée) |
+| `docs/audit/` | Audit et suivi de la refonte |
+
+Après toute modification d’un gabarit ou de `site/contact.json`, régénérez les pages puis commitez le résultat :
+
+```powershell
+node tools/generer-pages.js
+```
+
+L’adresse utilisée pour les liens canoniques et le plan du site est `https://unique-art-visuel-studio.vercel.app`. Pour un nom de domaine définitif : `SITE_URL=https://mondomaine.ci node tools/generer-pages.js`.
+
+Pages : `/`, `/creations`, `/oeuvres`, `/boutique`, `/services`, `/actualites`, `/studio`, `/contact`, `/assistant`, `/compte` (espace client), `/admin` (espace studio), les 10 documents juridiques et la page 404.
+
+
 ## Lancer le site avec son backend
 
 Le site ne doit plus être ouvert directement avec `file://` pour utiliser les comptes, discussions, commandes et publications partagées.

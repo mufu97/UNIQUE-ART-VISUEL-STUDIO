@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mon compte — UNIQUE ART VISUEL STUDIO</title>
+    <meta name="description" content="Espace client d’UNIQUE ART VISUEL STUDIO : commandes, paiements, demandes de devis et échanges avec le studio.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0a0a0b">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="fr_FR">
+    <meta property="og:site_name" content="UNIQUE ART VISUEL STUDIO">
+    <meta property="og:title" content="Mon compte — UNIQUE ART VISUEL STUDIO">
+    <meta property="og:description" content="Espace client d’UNIQUE ART VISUEL STUDIO : commandes, paiements, demandes de devis et échanges avec le studio.">
+    <meta property="og:url" content="https://unique-art-visuel-studio.vercel.app/compte">
+    <meta property="og:image" content="https://unique-art-visuel-studio.vercel.app/assets/brand/unique-art-studio.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/jpeg" href="/assets/brand/unique-art-emblem.jpg">
+    <link rel="preload" href="/assets/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/css/studio.css?v=20261118">
+    <script src="/js/core.js?v=20261118" defer></script>
+    <script src="/js/assistant.js?v=20261118" defer></script>
+    <script src="/js/pages/compte.js?v=20261118" defer></script>
+</head>
+<body data-page="compte" data-whatsapp="2250759875531">
+    <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+    <header class="entete">
+        <div class="conteneur entete-interieur">
+            <a class="marque" href="/" aria-label="UNIQUE ART VISUEL STUDIO, retour à l’accueil">
+                <img src="/assets/brand/unique-art-emblem.jpg" width="42" height="42" alt="">
+                <span><strong>UNIQUE ART</strong><small>VISUEL STUDIO</small></span>
+            </a>
+            <nav class="nav-principale" id="navPrincipale" aria-label="Navigation principale">
+                <ul>
+                    <li><a href="/">Accueil</a></li>
+                    <li><a href="/creations">Créations</a></li>
+                    <li><a href="/oeuvres">Œuvres</a></li>
+                    <li><a href="/boutique">Boutique</a></li>
+                    <li><a href="/services">Services &amp; tarifs</a></li>
+                    <li><a href="/actualites">Actualités</a></li>
+                    <li><a href="/studio">Le studio</a></li>
+                    <li><a href="/contact">Contact</a></li>
+                    <li class="nav-mobile"><a href="/compte" aria-current="page">Mon compte</a></li>
+                </ul>
+            </nav>
+            <div class="entete-actions">
+                <a class="btn btn-discret entete-compte" href="/compte" aria-current="page">Mon compte</a>
+                <button class="bouton-menu" type="button" aria-expanded="false" aria-controls="navPrincipale" aria-label="Ouvrir le menu"><span></span></button>
+            </div>
+        </div>
+    </header>
+    <div id="avisGlobal" class="bandeau-avis" role="status" aria-live="polite" hidden></div>
+    <main id="contenu">
+        <section class="heros-page">
+            <div class="conteneur">
+                <p class="surtitre">Espace client</p>
+                <h1 id="titreCompte">Mon compte</h1>
+                <p class="chapeau" id="chapeauCompte">Suivez vos commandes, vos demandes de devis et vos échanges avec le studio.</p>
+            </div>
+        </section>
+
+        <section class="section" id="zoneVisiteur" aria-labelledby="titreCompte">
+            <div class="conteneur bloc-deux">
+                <div class="panneau">
+                    <div class="onglets" role="tablist" aria-label="Accès au compte">
+                        <button class="onglet" role="tab" id="ongletConnexion" aria-controls="panneauConnexion" aria-selected="true">Connexion</button>
+                        <button class="onglet" role="tab" id="ongletInscription" aria-controls="panneauInscription" aria-selected="false" tabindex="-1">Créer un compte</button>
+                    </div>
+                    <form id="panneauConnexion" class="formulaire" role="tabpanel" aria-labelledby="ongletConnexion" novalidate>
+                        <div class="champ"><label for="connexionEmail">Adresse e-mail</label><input id="connexionEmail" name="email" type="email" autocomplete="username" required></div>
+                        <div class="champ"><label for="connexionMotDePasse">Mot de passe</label><input id="connexionMotDePasse" name="motDePasse" type="password" autocomplete="current-password" required></div>
+                        <button class="btn" type="submit">Se connecter</button>
+                        <button class="btn btn-discret" type="button" id="lienOubli">Mot de passe oublié ?</button>
+                        <p class="statut" role="status" aria-live="polite"></p>
+                    </form>
+                    <form id="panneauInscription" class="formulaire" role="tabpanel" aria-labelledby="ongletInscription" hidden novalidate>
+                        <div class="champ"><label for="inscriptionNom">Nom complet ou structure</label><input id="inscriptionNom" name="nom" autocomplete="name" required maxlength="100"></div>
+                        <div class="champ"><label for="inscriptionEmail">Adresse e-mail</label><input id="inscriptionEmail" name="email" type="email" autocomplete="email" required maxlength="150"></div>
+                        <div class="champ"><label for="inscriptionTelephone">Téléphone / WhatsApp</label><input id="inscriptionTelephone" name="telephone" type="tel" autocomplete="tel" required maxlength="40"></div>
+                        <div class="champ"><label for="inscriptionMotDePasse">Mot de passe</label><input id="inscriptionMotDePasse" name="motDePasse" type="password" autocomplete="new-password" required minlength="10" maxlength="128"><span class="aide">10 caractères minimum.</span></div>
+                        <label class="case"><input type="checkbox" name="conditions" required> <span>J’accepte les <a href="/conditions-utilisation" target="_blank">conditions générales d’utilisation</a> et j’ai pris connaissance de la <a href="/confidentialite" target="_blank">politique de confidentialité</a>.</span></label>
+                        <button class="btn" type="submit">Créer mon compte</button>
+                        <p class="statut" role="status" aria-live="polite"></p>
+                    </form>
+                    <form id="panneauOubli" class="formulaire" hidden novalidate>
+                        <h2>Mot de passe oublié</h2>
+                        <p>Indiquez l’adresse de votre compte : si elle existe, vous recevrez un lien valable 30 minutes.</p>
+                        <div class="champ"><label for="oubliEmail">Adresse e-mail</label><input id="oubliEmail" name="email" type="email" autocomplete="email" required></div>
+                        <button class="btn" type="submit">Recevoir le lien</button>
+                        <button class="btn btn-discret" type="button" data-retour>Retour à la connexion</button>
+                        <p class="statut" role="status" aria-live="polite"></p>
+                    </form>
+                    <form id="panneauReinitialisation" class="formulaire" hidden novalidate>
+                        <h2>Nouveau mot de passe</h2>
+                        <div class="champ"><label for="nouveauMotDePasse">Nouveau mot de passe</label><input id="nouveauMotDePasse" name="motDePasse" type="password" autocomplete="new-password" required minlength="10" maxlength="128"><span class="aide">10 caractères minimum.</span></div>
+                        <button class="btn" type="submit">Enregistrer</button>
+                        <p class="statut" role="status" aria-live="polite"></p>
+                    </form>
+                </div>
+                <div>
+                    <h2>Votre espace</h2>
+                    <ul class="liste-points">
+                        <li>L’historique de vos commandes et de leurs paiements.</li>
+                        <li>Le suivi de vos demandes de devis et des réponses du studio.</li>
+                        <li>Vos téléchargements, lorsque les éditions numériques seront disponibles.</li>
+                        <li>La gestion de vos données personnelles.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="zoneClient" hidden>
+            <div class="conteneur admin-grille">
+                <nav class="admin-menu" aria-label="Rubriques du compte">
+                    <a href="#profil">Profil</a>
+                    <a href="#commandes">Commandes et paiements</a>
+                    <a href="#demandes">Demandes et projets</a>
+                    <a href="#telechargements">Téléchargements</a>
+                    <a href="#donnees">Mes données</a>
+                </nav>
+                <div>
+                    <div class="panneau" id="profil">
+                        <h2>Profil</h2>
+                        <dl class="fiche" id="profilDetails"></dl>
+                        <div id="blocVerification" class="note" hidden>
+                            <p>Confirmez votre adresse e-mail pour retrouver les demandes et commandes envoyées avant votre connexion. Par sécurité, elles restent masquées tant que l’adresse n’est pas vérifiée.</p>
+                            <button class="btn btn-discret" type="button" id="boutonVerification">Recevoir le lien de confirmation</button>
+                            <p class="statut" id="statutVerification" role="status" aria-live="polite"></p>
+                        </div>
+                        <div class="groupe-boutons"><button class="btn btn-discret" type="button" id="boutonDeconnexion">Se déconnecter</button></div>
+                    </div>
+                    <div class="panneau" id="commandes">
+                        <h2>Commandes et paiements</h2>
+                        <ul class="liste-elements" id="listeCommandes"></ul>
+                    </div>
+                    <div class="panneau" id="demandes">
+                        <div class="element-entete"><h2>Demandes et projets</h2><a class="btn btn-discret" href="/services#devis">Nouvelle demande</a></div>
+                        <ul class="liste-elements" id="listeDemandes"></ul>
+                    </div>
+                    <div class="panneau" id="telechargements">
+                        <h2>Téléchargements</h2>
+                        <p>Vos achats numériques apparaîtront ici. Chaque téléchargement se fera par un lien sécurisé et temporaire, après confirmation du paiement.</p>
+                    </div>
+                    <div class="panneau" id="donnees">
+                        <h2>Mes données</h2>
+                        <p>Vous pouvez demander l’accès à vos données, leur rectification ou la suppression de votre compte. Le studio traite la demande après une vérification raisonnable de votre identité.</p>
+                        <div class="groupe-boutons">
+                            <a class="btn btn-discret" href="/contact?sujet=donnees">Exercer mes droits</a>
+                            <a class="btn btn-discret" href="/confidentialite">Politique de confidentialité</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer class="pied">
+        <div class="conteneur">
+            <div class="pied-grille">
+                <div class="pied-marque">
+                    <a class="marque" href="/" aria-label="UNIQUE ART VISUEL STUDIO, retour à l’accueil">
+                        <img src="/assets/brand/unique-art-emblem.jpg" width="42" height="42" alt="" loading="lazy">
+                        <span><strong>UNIQUE ART</strong><small>VISUEL STUDIO</small></span>
+                    </a>
+                    <p class="devise">« Là où le dessin pense »</p>
+                    <p>Studio indépendant de création et de production artistique, littéraire et visuelle. L’excellence, notre Leitmotiv.</p>
+                </div>
+                <div>
+                    <h2>Découvrir</h2>
+                    <ul>
+                        <li><a href="/creations">Créations</a></li>
+                        <li><a href="/oeuvres">Œuvres &amp; publications</a></li>
+                        <li><a href="/boutique">Boutique</a></li>
+                        <li><a href="/actualites">Actualités</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Le studio</h2>
+                    <ul>
+                        <li><a href="/studio">À propos</a></li>
+                        <li><a href="/services">Services &amp; tarifs</a></li>
+                        <li><a href="/assistant">Assistant de lecture IA</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/compte">Mon compte</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Informations légales</h2>
+                    <ul>
+                        <li><a href="/mentions-legales">Mentions légales</a></li>
+                        <li><a href="/confidentialite">Politique de confidentialité</a></li>
+                        <li><a href="/cookies">Politique relative aux cookies</a></li>
+                        <li><a href="/conditions-utilisation">Conditions générales d’utilisation</a></li>
+                        <li><a href="/conditions-vente">Conditions générales de vente</a></li>
+                        <li><a href="/remboursement">Remboursement et réclamations</a></li>
+                        <li><a href="/licence-oeuvres-numeriques">Licence des œuvres numériques</a></li>
+                        <li><a href="/propriete-intellectuelle">Propriété intellectuelle</a></li>
+                        <li><a href="/conditions-ia">Conditions de l’assistant IA</a></li>
+                        <li><a href="/paiement-livraison">Paiement et livraison numérique</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Autres services</h2>
+                    <ul>
+                        <li><a href="/appareils.html">Mes appareils</a></li>
+                        <li><a href="/assistance-appareils.html">Assistance appareils</a></li>
+                        <li><a href="/admin" rel="nofollow">Espace studio</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pied-bas">
+                <span>© <span data-annee>2026</span> UNIQUE ART VISUEL STUDIO. Tous droits réservés.</span>
+                <span>L’excellence, notre Leitmotiv.</span>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

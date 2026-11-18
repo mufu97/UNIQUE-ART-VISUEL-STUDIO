@@ -1,0 +1,6 @@
+{
+    "_note": "Coordonnées publiques affichées sur le site. Renseignez « email » avec l'adresse de contact que le studio souhaite publier, puis lancez : node tools/generer-pages.js",
+    "email": "",
+    "telephones": ["+225 07 59 87 55 31", "+225 07 01 67 59 41"],
+    "whatsapp": "2250759875531"
+}

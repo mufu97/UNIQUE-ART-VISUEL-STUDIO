@@ -73,32 +73,36 @@ const CLIENT_SESSION_SECRET = String(process.env.CLIENT_SESSION_SECRET || proces
 if (IS_PRODUCTION && !process.env.ADMIN_API_KEY) {
     throw new Error("ADMIN_API_KEY doit être configurée en production.");
 }
+// Seuls ces types de fichiers du dossier public/ sont servis ; tout le reste répond 404.
 const MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
-    ".svg": "image/svg+xml"
+    ".svg": "image/svg+xml",
+    ".woff2": "font/woff2",
+    ".xml": "application/xml; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8"
 };
-const PUBLIC_ROOT_FILES = new Set([
-    "index.html",
-    "style.css",
-    "script.js",
-    "conditions-utilisation.html",
-    "confidentialite.html",
-    "mentions-legales.html",
-    "appareils.html",
-    "appareils.css",
-    "appareils.js",
-    "assistance-appareils.html",
-    "assistance-appareils.css",
-    "assistance-appareils.js"
-]);
-const PUBLIC_ASSET_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".svg", ".webp"]);
+// Politique de sécurité du contenu : scripts, styles et polices proviennent uniquement du site.
+// Les images et vidéos importées par le studio peuvent être des données « data: » ou « blob: ».
+const CONTENT_SECURITY_POLICY = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "media-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "frame-src blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'"
+].join("; ");
 const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intrigues?|personnages?|chapitres?|extraits?|passages?|histoires?|themes?|singularisme|pouvoir des mots|fins?|resumes?|interpretations?|textes?)\b/;
 
 const CATALOGUE_PAIEMENT = Object.freeze({
@@ -694,7 +698,7 @@ function originePublique({ repliLocal = false } = {}) {
 
 function urlPubliqueReinitialisationMotDePasse() {
     const origine = originePublique();
-    return origine ? `${origine}/appareils.html` : "";
+    return origine ? `${origine}/compte` : "";
 }
 
 function limiteVerificationEmailAtteinte(request) {
@@ -732,7 +736,7 @@ async function envoyerEmailVerification(client, token) {
     const from = process.env.EMAIL_FROM;
     const origine = originePublique({ repliLocal: true });
     if (!apiKey || !from || !origine) return false;
-    const lien = `${origine}/?verifier_email=${encodeURIComponent(token)}#compte`;
+    const lien = `${origine}/compte?verifier_email=${encodeURIComponent(token)}`;
     const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -2541,7 +2545,7 @@ async function handleApi(request, response, url) {
                         customer_city: "Abidjan",
                         customer_country: "CI",
                         channels: "ALL",
-                        return_url: `${configuration.baseUrl}/?paiement=retour`,
+                        return_url: `${configuration.baseUrl}/boutique?paiement=retour&commande=${transactionId}`,
                         notify_url: `${configuration.baseUrl}/api/payments/notify`,
                         metadata: transactionId
                     }),
@@ -2578,6 +2582,44 @@ async function handleApi(request, response, url) {
     return true;
 }
 
+function envoyerFichier(request, response, filePath, status = 200) {
+    const extension = path.extname(filePath).toLowerCase();
+    const headers = { "Content-Type": MIME_TYPES[extension] };
+    headers["Cache-Control"] = extension === ".html"
+        ? "no-cache"
+        : [".js", ".css", ".woff2"].includes(extension)
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=604800, stale-while-revalidate=86400";
+    if (extension === ".html") headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY;
+    const compressible = [".html", ".js", ".css", ".svg", ".xml", ".txt"].includes(extension);
+    const acceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(String(request.headers["accept-encoding"] || ""));
+    if (compressible) headers.Vary = "Accept-Encoding";
+    if (compressible && acceptsGzip && fs.statSync(filePath).size > 1024) {
+        headers["Content-Encoding"] = "gzip";
+        response.writeHead(status, headers);
+        fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(response);
+        return;
+    }
+    response.writeHead(status, headers);
+    fs.createReadStream(filePath).pipe(response);
+}
+
+// Résout une adresse vers un fichier de public/ : « /creations » sert creations.html (adresses propres).
+function resoudreFichierPublic(cheminDecode) {
+    const relatif = (cheminDecode === "/" ? "/index.html" : cheminDecode.replace(/\/+$/, ""))
+        .replace(/^[/\\]+/, "").split(/[\\/]+/).join(path.sep);
+    if (!relatif || relatif.split(path.sep).some((segment) => segment.startsWith("."))) return null;
+    const candidats = path.extname(relatif) ? [relatif] : [`${relatif}.html`];
+    for (const candidat of candidats) {
+        const filePath = path.resolve(PUBLIC_DIR, candidat);
+        const relativeFilePath = path.relative(PUBLIC_DIR, filePath);
+        const dansPublic = relativeFilePath && !relativeFilePath.startsWith("..") && !path.isAbsolute(relativeFilePath);
+        if (dansPublic && MIME_TYPES[path.extname(filePath).toLowerCase()]
+            && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) return filePath;
+    }
+    return null;
+}
+
 function serveFile(request, response, url) {
     let decodedPath;
     try {
@@ -2587,43 +2629,26 @@ function serveFile(request, response, url) {
         response.end("Adresse invalide");
         return;
     }
-    const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
-    const relativeRequestPath = requestedPath.replace(/^[/\\]+/, "").split(/[\\/]+/).join(path.sep);
-    const filePath = path.resolve(PUBLIC_DIR, relativeRequestPath);
-    const relativeFilePath = path.relative(PUBLIC_DIR, filePath);
-    const relativeFilePathPortable = relativeFilePath.split(path.sep).join("/").toLowerCase();
-    const isInsideRoot = relativeFilePath !== ".."
-        && !relativeFilePath.startsWith(`..${path.sep}`)
-        && !path.isAbsolute(relativeFilePath);
-    const isPublicRootFile = PUBLIC_ROOT_FILES.has(relativeFilePathPortable);
-    const isPublicAsset = relativeFilePathPortable.startsWith("assets/")
-        && PUBLIC_ASSET_EXTENSIONS.has(path.extname(relativeFilePathPortable));
-
-    if (!isInsideRoot || (!isPublicRootFile && !isPublicAsset)
-        || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-        response.end("Page introuvable");
+    // Les anciennes adresses en .html redirigent vers leur version propre (comme sur l'hébergeur).
+    if (/^\/[a-z0-9-]+\.html$/i.test(decodedPath) && decodedPath !== "/404.html"
+        && !["/appareils.html", "/assistance-appareils.html"].includes(decodedPath)) {
+        const cible = decodedPath === "/index.html" ? "/" : decodedPath.slice(0, -5);
+        response.writeHead(308, { Location: `${cible}${url.search}` });
+        response.end();
         return;
     }
-
-    const extension = path.extname(filePath).toLowerCase();
-    const headers = { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" };
-    headers["Cache-Control"] = extension === ".html"
-        ? "no-cache"
-        : [".js", ".css"].includes(extension)
-            ? "public, max-age=31536000, immutable"
-            : "public, max-age=604800, stale-while-revalidate=86400";
-    const compressible = [".html", ".js", ".css", ".svg"].includes(extension);
-    const acceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(String(request.headers["accept-encoding"] || ""));
-    if (compressible) headers.Vary = "Accept-Encoding";
-    if (compressible && acceptsGzip && fs.statSync(filePath).size > 1024) {
-        headers["Content-Encoding"] = "gzip";
-        response.writeHead(200, headers);
-        fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(response);
+    const filePath = resoudreFichierPublic(decodedPath);
+    if (filePath) {
+        envoyerFichier(request, response, filePath);
         return;
     }
-    response.writeHead(200, headers);
-    fs.createReadStream(filePath).pipe(response);
+    const page404 = path.join(PUBLIC_DIR, "404.html");
+    if (fs.existsSync(page404)) {
+        envoyerFichier(request, response, page404, 404);
+        return;
+    }
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Page introuvable");
 }
 
 function traiterRequete(request, response) {
@@ -2662,6 +2687,7 @@ function traiterRequete(request, response) {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "SAMEORIGIN");
     response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.setHeader("Permissions-Policy", "camera=(), payment=(), usb=(), microphone=(self), geolocation=(self)");
     serveFile(request, response, url);
 }
 

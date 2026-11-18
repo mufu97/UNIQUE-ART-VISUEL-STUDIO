@@ -294,3 +294,33 @@ test("traduction : la langue demandée par le site est bien prise en compte", as
     const reponse = await api("/api/translate", { method: "POST", body: { text: "Bonjour", targetLanguage: "xx" } });
     assert.equal(reponse.status, 400);
 });
+
+// --- Site public : pages, adresses propres, sécurité ---
+
+test("site : chaque page répond à son adresse propre, avec une politique de sécurité", async () => {
+    const pages = ["/", "/creations", "/oeuvres", "/boutique", "/services", "/actualites", "/studio", "/contact",
+        "/assistant", "/compte", "/admin", "/mentions-legales", "/confidentialite", "/cookies", "/conditions-utilisation",
+        "/conditions-vente", "/remboursement", "/licence-oeuvres-numeriques", "/propriete-intellectuelle",
+        "/conditions-ia", "/paiement-livraison"];
+    for (const page of pages) {
+        const reponse = await fetch(BASE + page, { redirect: "manual" });
+        assert.equal(reponse.status, 200, page);
+        assert.match(reponse.headers.get("content-security-policy") || "", /script-src 'self'/, page);
+        const html = await reponse.text();
+        assert.match(html, /<title>[^<]+<\/title>/, page);
+        assert.ok(!html.includes("{{"), `${page} : jeton de gabarit non remplacé`);
+    }
+});
+
+test("site : anciennes adresses redirigées, page 404, plan du site", async () => {
+    const ancienne = await fetch(`${BASE}/confidentialite.html`, { redirect: "manual" });
+    assert.equal(ancienne.status, 308);
+    assert.equal(ancienne.headers.get("location"), "/confidentialite");
+    const introuvable = await fetch(`${BASE}/page-qui-n-existe-pas`);
+    assert.equal(introuvable.status, 404);
+    assert.match(await introuvable.text(), /Cette page s’est effacée/);
+    assert.match(await (await fetch(`${BASE}/sitemap.xml`)).text(), /<loc>[^<]+\/creations<\/loc>/);
+    assert.match(await (await fetch(`${BASE}/robots.txt`)).text(), /Disallow: \/admin/);
+    assert.equal((await fetch(`${BASE}/.env`)).status, 404);
+    assert.equal((await fetch(`${BASE}/site/contact.json`)).status, 404);
+});

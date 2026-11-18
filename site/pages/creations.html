@@ -1,0 +1,36 @@
+<!--{"titre":"Créations","description":"Galerie des créations du studio : illustrations, dessins, planches de bande dessinée, personnages, affiches, couvertures, direction artistique et animations.","chemin":"/creations","nav":"creations","scripts":["/js/catalogue.js","creations"],"priorite":"0.9"}-->
+<section class="heros-page">
+    <div class="conteneur">
+        <nav class="fil-ariane" aria-label="Fil d’Ariane"><a href="/">Accueil</a> / Créations</nav>
+        <p class="surtitre">Portfolio</p>
+        <h1>Les créations du studio</h1>
+        <p class="chapeau">Illustrations, dessins, planches, personnages, affiches et couvertures. Sélectionnez une œuvre pour ouvrir sa fiche détaillée.</p>
+    </div>
+</section>
+
+<section class="section" aria-label="Galerie">
+    <div class="conteneur">
+        <div id="filtresCreations" class="filtres" role="group" aria-label="Filtrer par catégorie"></div>
+        <div id="galerieCreations" class="galerie" aria-live="polite"></div>
+        <p id="galerieVide" class="etat-vide" hidden>Aucune création dans cette catégorie pour le moment.</p>
+    </div>
+</section>
+
+<div id="visionneuse" class="visionneuse" role="dialog" aria-modal="true" aria-labelledby="visionneuseTitre" hidden>
+    <div class="visionneuse-media" id="visionneuseMedia"></div>
+    <div class="visionneuse-fiche">
+        <p class="surtitre" id="visionneuseCategorie"></p>
+        <h2 id="visionneuseTitre"></h2>
+        <p id="visionneuseDescription"></p>
+        <dl id="visionneuseDetails"></dl>
+        <div class="groupe-boutons">
+            <a class="btn" href="/services#devis">Un projet similaire ?</a>
+            <span id="visionneusePdf"></span>
+        </div>
+    </div>
+    <div class="visionneuse-commandes">
+        <button type="button" id="visionneusePrecedent" aria-label="Création précédente">←</button>
+        <button type="button" id="visionneuseSuivant" aria-label="Création suivante">→</button>
+        <button type="button" id="visionneuseFermer" aria-label="Fermer la fiche">✕</button>
+    </div>
+</div>

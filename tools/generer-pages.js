@@ -5,6 +5,7 @@
 // Les coordonnées publiques viennent de site/contact.json. Dans les gabarits :
 //   {{EMAIL_LIEN}}  lien vers l'adresse e-mail publique (ou vers le formulaire si elle n'est pas renseignée)
 //   {{TELEPHONES}}  liens d'appel ; {{WHATSAPP}} numéro WhatsApp international sans « + »
+//   {{BOUTIQUE_URL}} adresse de la boutique en ligne partenaire
 // Usage : node tools/generer-pages.js   (les pages sont écrites dans public/ et doivent être commitées)
 "use strict";
 
@@ -58,7 +59,8 @@ function remplacerCoordonnees(html) {
     return html
         .replaceAll("{{EMAIL_LIEN}}", lienEmail)
         .replaceAll("{{TELEPHONES}}", telephones)
-        .replaceAll("{{WHATSAPP}}", echapper(CONTACT.whatsapp || ""));
+        .replaceAll("{{WHATSAPP}}", echapper(CONTACT.whatsapp || ""))
+        .replaceAll("{{BOUTIQUE_URL}}", echapper(CONTACT.boutique || "/boutique"));
 }
 
 function fichierPourChemin(chemin) {

@@ -142,6 +142,11 @@ test("administration : mot de passe vérifié, routes protégées", async () => 
     assert.equal(connexion.status, 200);
     assert.equal((await api("/api/admin/session", { cookie: connexion.cookie })).json.authenticated, true);
     assert.equal((await api("/api/admin/session")).json.authenticated, false);
+    // Cookie signé : un jeton falsifié ou modifié est refusé.
+    const faux = "unique_art_admin=" + Buffer.from(JSON.stringify({ role: "admin", expireLe: Date.now() + 60000 })).toString("base64url") + ".AAAA";
+    assert.equal((await api("/api/admin/session", { cookie: faux })).json.authenticated, false);
+    assert.equal((await api("/api/admin/session", { cookie: connexion.cookie + "x" })).json.authenticated, false);
+    assert.equal((await api("/api/admin/inbox", { cookie: faux })).status, 401);
 });
 
 test("discussions : création publique, suppression réservée à l'admin", async () => {

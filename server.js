@@ -88,7 +88,8 @@ const PUBLIC_ROOT_FILES = new Set([
     "assistance-appareils.css",
     "assistance-appareils.js",
     "portfolio.html",
-    "portfolio.css"
+    "portfolio.css",
+    "portfolio.js"
 ]);
 const PUBLIC_ASSET_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".svg", ".webp"]);
 const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intrigues?|personnages?|chapitres?|extraits?|passages?|histoires?|themes?|singularisme|pouvoir des mots|fins?|resumes?|interpretations?|textes?)\b/;

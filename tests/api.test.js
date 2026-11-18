@@ -80,7 +80,7 @@ test("santé du serveur", async () => {
 });
 
 test("les pages publiques sont servies, les fichiers internes non", async () => {
-    for (const page of ["/", "/appareils.html", "/assistance-appareils.html", "/portfolio.html", "/portfolio.css", "/confidentialite.html"]) {
+    for (const page of ["/", "/appareils.html", "/assistance-appareils.html", "/portfolio.html", "/portfolio.css", "/portfolio.js", "/confidentialite.html"]) {
         assert.equal((await api(page)).status, 200, page);
     }
     for (const prive of ["/server.js", "/.env", "/data/store.json", "/package.json", "/.git/config", "/assets/%2e%2e/server.js"]) {

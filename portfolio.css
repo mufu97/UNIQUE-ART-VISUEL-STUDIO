@@ -104,3 +104,39 @@ blockquote { margin: 26px 0 0; padding: 4px 0 4px 22px; border-left: 3px solid v
 .gallery a:hover img { transform: translateY(-3px); border-color: var(--accent); }
 .gallery figcaption { margin-top: 6px; font-size: .8rem; color: var(--muted); }
 @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } .portrait { max-width: 240px; } }
+
+/* ===== Motion design ===== */
+.progress { position: fixed; inset: 0 0 auto 0; z-index: 30; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transform: scaleX(0); transform-origin: 0 50%; }
+.topbar nav a { position: relative; transition: color .2s; }
+.topbar nav a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; transition: transform .3s; }
+.topbar nav a.active { color: var(--ink); }
+.topbar nav a.active::after { transform: scaleX(1); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes unveil { from { clip-path: inset(0 0 100% 0); transform: scale(1.08); } to { clip-path: inset(0); transform: none; } }
+@keyframes shimmer { to { background-position: 200% 0; } }
+@keyframes draw { to { transform: scaleX(1); } }
+@keyframes float { 50% { transform: translateY(-6px); } }
+
+.motion .hero-text > * { opacity: 0; animation: rise .8s cubic-bezier(.2, .7, .2, 1) forwards; }
+.motion .hero-text > :nth-child(1) { animation-delay: .15s; }
+.motion .hero-text > :nth-child(2) { animation-delay: .3s; }
+.motion .hero-text > :nth-child(3) { animation-delay: .5s; }
+.motion .hero-text > :nth-child(4) { animation-delay: .65s; }
+.motion .hero-text > :nth-child(5) { animation-delay: .85s; }
+.motion .hero-text > :nth-child(6) { animation-delay: 1s; }
+.motion .portrait { animation: unveil 1.2s cubic-bezier(.6, 0, .2, 1) both; will-change: transform; }
+.motion h1 span { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent)); animation: shimmer 5s linear infinite; }
+.motion .tagline:not(.small) { animation: rise .8s .85s cubic-bezier(.2, .7, .2, 1) both, float 4s 2s ease-in-out infinite; }
+
+.motion .reveal { opacity: 0; transform: translateY(30px); transition: opacity .7s ease var(--d, 0ms), transform .7s cubic-bezier(.2, .7, .2, 1) var(--d, 0ms); }
+.motion .reveal.in { opacity: 1; transform: none; }
+.motion .block .num { opacity: 0; transform: translateX(-16px); transition: opacity .6s, transform .6s; }
+.motion .block .num.in { opacity: 1; transform: none; }
+.motion .block h2 { position: relative; padding-bottom: 14px; }
+.motion .block h2::after { content: ""; position: absolute; left: 0; bottom: 0; width: 64px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transform: scaleX(0); transform-origin: 0 50%; }
+.motion .block h2.in::after { animation: draw .8s .2s cubic-bezier(.2, .7, .2, 1) forwards; }
+.motion .chips li, .motion .card, .motion .steps li { transition: opacity .7s ease var(--d, 0ms), transform .7s cubic-bezier(.2, .7, .2, 1) var(--d, 0ms), border-color .25s, background .25s; }
+.motion .chips li.in:hover, .motion .steps li.in:hover { border-color: var(--accent); transform: translateX(4px); transition-delay: 0ms; }
+.motion .card.in:hover { border-color: var(--accent); transform: translateY(-5px); transition-delay: 0ms; }
+.motion .gallery img { will-change: transform; transition: transform .25s ease-out, border-color .25s; }

@@ -1,0 +1,31 @@
+<!--{"titre":"Contact","description":"Contactez UNIQUE ART VISUEL STUDIO pour un projet d’illustration, de bande dessinée, d’édition, de character design ou de direction artistique.","chemin":"/contact","nav":"contact","scripts":["contact"],"priorite":"0.7"}-->
+<section class="heros-page">
+    <div class="conteneur">
+        <nav class="fil-ariane" aria-label="Fil d’Ariane"><a href="/">Accueil</a> / Contact</nav>
+        <p class="surtitre">Parlons de votre projet</p>
+        <h1>Créons quelque chose d’unique.</h1>
+    </div>
+</section>
+<section class="section" id="formulaire">
+    <div class="conteneur bloc-deux">
+        <div class="apparition">
+            <h2>Nos coordonnées</h2>
+            <dl class="fiche">
+                <dt>Téléphone</dt><dd>{{TELEPHONES}}</dd>
+                <dt>WhatsApp</dt><dd><a href="https://wa.me/{{WHATSAPP}}" target="_blank" rel="noopener noreferrer">Écrire sur WhatsApp</a></dd>
+                <dt>E-mail</dt><dd>{{EMAIL_LIEN}}</dd>
+            </dl>
+            <p class="chapeau">Pour un devis détaillé, utilisez de préférence le <a href="/services#devis">formulaire de devis</a> : il permet de préciser la prestation, le délai et le budget.</p>
+            <p id="emailIndisponible" class="note" hidden>Le formulaire d’e-mail est momentanément indisponible. Écrivez-nous sur WhatsApp ou par téléphone.</p>
+        </div>
+        <form id="formulaireContact" class="formulaire panneau apparition" novalidate>
+            <div class="champ"><label for="contactNom">Nom complet</label><input id="contactNom" name="nom" autocomplete="name" required maxlength="100"></div>
+            <div class="champ"><label for="contactEmail">Adresse e-mail</label><input id="contactEmail" name="email" type="email" autocomplete="email" required maxlength="150"></div>
+            <div class="champ"><label for="contactMessage">Votre message</label><textarea id="contactMessage" name="message" required maxlength="5000" placeholder="Objectifs, délais, format…"></textarea></div>
+            <div class="piege" aria-hidden="true"><label for="contactSite">Ne pas remplir</label><input id="contactSite" name="website" tabindex="-1" autocomplete="off"></div>
+            <p class="mention-donnees">Votre message et votre adresse e-mail servent uniquement à vous répondre. <a href="/confidentialite">Politique de confidentialité</a>.</p>
+            <button class="btn" type="submit">Envoyer le message</button>
+            <p id="contactStatut" class="statut" role="status" aria-live="polite"></p>
+        </form>
+    </div>
+</section>

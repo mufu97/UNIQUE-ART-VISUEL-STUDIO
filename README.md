@@ -1,5 +1,31 @@
 # Unique Art Visuel Studio
 
+> « Là où le dessin pense » — L’excellence, notre Leitmotiv.
+
+## Structure du site (refonte noir et or)
+
+| Dossier / fichier | Rôle |
+|---|---|
+| `server.js`, `api/index.js` | Serveur Node.js : API `/api/*` et service des pages (en local) ; fonction serverless sur Vercel |
+| `site/pages/*.html` | **Gabarits des pages** (contenu de chaque page). C’est ici que l’on modifie les textes. |
+| `site/contact.json` | Coordonnées publiques (e-mail, téléphones, WhatsApp) insérées dans les pages |
+| `tools/generer-pages.js` | Assemble les gabarits avec l’en-tête, le pied de page et les métadonnées SEO, et produit `public/*.html`, `sitemap.xml` et `robots.txt` |
+| `public/` | Site publié tel quel (pages générées, `css/studio.css`, `js/`, `assets/`) |
+| `public/js/core.js`, `assistant.js`, `catalogue.js`, `pages/*.js` | Fonctions communes, assistant de lecture IA, contenus de référence, script de chaque page |
+| `legacy/prototype/` | Archive de l’ancienne page unique (non publiée) |
+| `docs/audit/` | Audit et suivi de la refonte |
+
+Après toute modification d’un gabarit ou de `site/contact.json`, régénérez les pages puis commitez le résultat :
+
+```powershell
+node tools/generer-pages.js
+```
+
+L’adresse utilisée pour les liens canoniques et le plan du site est `https://unique-art-visuel-studio.vercel.app`. Pour un nom de domaine définitif : `SITE_URL=https://mondomaine.ci node tools/generer-pages.js`.
+
+Pages : `/`, `/creations`, `/oeuvres`, `/boutique`, `/services`, `/actualites`, `/studio`, `/contact`, `/assistant`, `/compte` (espace client), `/admin` (espace studio), les 10 documents juridiques et la page 404.
+
+
 ## Lancer le site avec son backend
 
 Le site ne doit plus être ouvert directement avec `file://` pour utiliser les comptes, discussions, commandes et publications partagées.
@@ -16,7 +42,7 @@ npm start
 
 ### Version de référence et aperçu local
 
-La version à conserver est celle du dossier contenant `server.js`, `package.json`, `index.html`, `script.js`, `style.css` et `assets/`. Le lien `http://127.0.0.1:5501/index.html` actuellement ouvert par l’extension Live Server affiche bien le `index.html` de ce dossier, mais cette extension ne lance pas l’API. Elle sert aussi des fichiers qui ne sont pas destinés au site (notamment `.git/config` et `data/store.json`). Arrêtez Live Server et utilisez `Lancer le site.bat` ou `npm start`, puis ouvrez `http://localhost:3000` : le serveur du site ne publie que les pages et ressources autorisées, et les API fonctionnent.
+La version à conserver est celle du dossier contenant `server.js`, `package.json` et le dossier `public/` (`index.html`, `script.js`, `style.css`, `assets/`). Le lien `http://127.0.0.1:5501/index.html` actuellement ouvert par l’extension Live Server affiche bien le `index.html` de ce dossier, mais cette extension ne lance pas l’API. Elle sert aussi des fichiers qui ne sont pas destinés au site (notamment `.git/config` et `data/store.json`). Arrêtez Live Server et utilisez `Lancer le site.bat` ou `npm start`, puis ouvrez `http://localhost:3000` : le serveur du site ne publie que les pages et ressources autorisées, et les API fonctionnent.
 
 L’ancienne page isolée a été archivée hors du dépôt ; elle ne contenait pas ses dépendances `style.css`, `script.js` et `assets/`. Ne l’utilisez pas comme version de référence.
 
@@ -88,6 +114,22 @@ Le studio guide le propriétaire ; il ne contourne pas les mots de passe, ne pre
 ## Mise en production
 
 Le parcours de paiement CinetPay est intégré : le serveur fixe les prix, crée la commande, redirige vers le paiement hébergé et confirme le règlement en vérifiant la transaction auprès de CinetPay. L’administration vérifie maintenant son mot de passe côté serveur et utilise un cookie de session `HttpOnly`.
+
+## Mettre le site en ligne sur Vercel
+
+Le dépôt est prêt pour Vercel :
+
+- `public/` contient les pages, styles, scripts et images publiés (rien d’autre n’est servi) ;
+- `api/index.js` relie toutes les routes `/api/*` à `server.js` ;
+- `vercel.json` décrit cette configuration.
+
+Variables d’environnement du projet Vercel : `ADMIN_API_KEY`, `CLIENT_SESSION_SECRET`, `PUBLIC_BASE_URL`, `NODEJS_HELPERS=0` et `DATABASE_URL` (ou `POSTGRES_URL`), plus les fournisseurs optionnels (CinetPay, Resend, assistant IA).
+
+**Une base PostgreSQL est obligatoire en ligne.** Sur Vercel, le disque n’est pas persistant : `data/store.json` n’est pas utilisable. Deux possibilités : coller dans `DATABASE_URL` la chaîne de connexion Supabase (**Connect** > **Transaction pooler**), ou créer une base depuis l’onglet **Storage** du projet Vercel (Neon, par exemple), qui ajoute la variable automatiquement. Redéployez ensuite. Tant que la base manque, le site s’affiche mais refuse les inscriptions, discussions et commandes ; `/api/health` indique alors `"storage": "non-configure"`.
+
+Limites propres à Vercel : l’offre gratuite « Hobby » est réservée à un usage non commercial ; plusieurs instances du serveur peuvent tourner en même temps, si bien que le verrou des modifications et la limite de débit ne valent que par instance.
+
+Les sessions administrateur sont des cookies signés (12 heures), valables quelle que soit l’instance qui répond. Changer `ADMIN_API_KEY` déconnecte toutes les sessions administrateur.
 
 ## Déployer le site sur Railway avec Supabase
 

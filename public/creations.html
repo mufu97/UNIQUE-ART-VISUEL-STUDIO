@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Créations — UNIQUE ART VISUEL STUDIO</title>
+    <meta name="description" content="Galerie des créations du studio : illustrations, dessins, planches de bande dessinée, personnages, affiches, couvertures, direction artistique et animations.">
+    <link rel="canonical" href="https://unique-art-visuel-studio.vercel.app/creations">
+    <meta name="theme-color" content="#0a0a0b">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="fr_FR">
+    <meta property="og:site_name" content="UNIQUE ART VISUEL STUDIO">
+    <meta property="og:title" content="Créations — UNIQUE ART VISUEL STUDIO">
+    <meta property="og:description" content="Galerie des créations du studio : illustrations, dessins, planches de bande dessinée, personnages, affiches, couvertures, direction artistique et animations.">
+    <meta property="og:url" content="https://unique-art-visuel-studio.vercel.app/creations">
+    <meta property="og:image" content="https://unique-art-visuel-studio.vercel.app/assets/brand/unique-art-studio.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/jpeg" href="/assets/brand/unique-art-emblem.jpg">
+    <link rel="preload" href="/assets/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/css/studio.css?v=20261118">
+    <script src="/js/core.js?v=20261118" defer></script>
+    <script src="/js/assistant.js?v=20261118" defer></script>
+    <script src="/js/catalogue.js?v=20261118" defer></script>
+    <script src="/js/pages/creations.js?v=20261118" defer></script>
+</head>
+<body data-page="creations" data-whatsapp="2250759875531">
+    <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+    <header class="entete">
+        <div class="conteneur entete-interieur">
+            <a class="marque" href="/" aria-label="UNIQUE ART VISUEL STUDIO, retour à l’accueil">
+                <img src="/assets/brand/unique-art-emblem.jpg" width="42" height="42" alt="">
+                <span><strong>UNIQUE ART</strong><small>VISUEL STUDIO</small></span>
+            </a>
+            <nav class="nav-principale" id="navPrincipale" aria-label="Navigation principale">
+                <ul>
+                    <li><a href="/">Accueil</a></li>
+                    <li><a href="/creations" aria-current="page">Créations</a></li>
+                    <li><a href="/oeuvres">Œuvres</a></li>
+                    <li><a href="/boutique">Boutique</a></li>
+                    <li><a href="/services">Services &amp; tarifs</a></li>
+                    <li><a href="/actualites">Actualités</a></li>
+                    <li><a href="/studio">Le studio</a></li>
+                    <li><a href="/portfolio">Portfolio</a></li>
+                    <li><a href="/contact">Contact</a></li>
+                    <li class="nav-mobile"><a href="/compte">Mon compte</a></li>
+                </ul>
+            </nav>
+            <div class="entete-actions">
+                <a class="btn btn-discret entete-compte" href="/compte">Mon compte</a>
+                <button class="bouton-menu" type="button" aria-expanded="false" aria-controls="navPrincipale" aria-label="Ouvrir le menu"><span></span></button>
+            </div>
+        </div>
+    </header>
+    <div id="avisGlobal" class="bandeau-avis" role="status" aria-live="polite" hidden></div>
+    <main id="contenu">
+        <section class="heros-page">
+            <div class="conteneur">
+                <nav class="fil-ariane" aria-label="Fil d’Ariane"><a href="/">Accueil</a> / Créations</nav>
+                <p class="surtitre">Portfolio</p>
+                <h1>Les créations du studio</h1>
+                <p class="chapeau">Illustrations, dessins, planches, personnages, affiches et couvertures. Sélectionnez une œuvre pour ouvrir sa fiche détaillée.</p>
+            </div>
+        </section>
+
+        <section class="section" aria-label="Galerie">
+            <div class="conteneur">
+                <div id="filtresCreations" class="filtres" role="group" aria-label="Filtrer par catégorie"></div>
+                <div id="galerieCreations" class="galerie" aria-live="polite"></div>
+                <p id="galerieVide" class="etat-vide" hidden>Aucune création dans cette catégorie pour le moment.</p>
+            </div>
+        </section>
+
+        <div id="visionneuse" class="visionneuse" role="dialog" aria-modal="true" aria-labelledby="visionneuseTitre" hidden>
+            <div class="visionneuse-media" id="visionneuseMedia"></div>
+            <div class="visionneuse-fiche">
+                <p class="surtitre" id="visionneuseCategorie"></p>
+                <h2 id="visionneuseTitre"></h2>
+                <p id="visionneuseDescription"></p>
+                <dl id="visionneuseDetails"></dl>
+                <div class="groupe-boutons">
+                    <a class="btn" href="/services#devis">Un projet similaire ?</a>
+                    <span id="visionneusePdf"></span>
+                </div>
+            </div>
+            <div class="visionneuse-commandes">
+                <button type="button" id="visionneusePrecedent" aria-label="Création précédente">←</button>
+                <button type="button" id="visionneuseSuivant" aria-label="Création suivante">→</button>
+                <button type="button" id="visionneuseFermer" aria-label="Fermer la fiche">✕</button>
+            </div>
+        </div>
+    </main>
+    <footer class="pied">
+        <div class="conteneur">
+            <div class="pied-grille">
+                <div class="pied-marque">
+                    <a class="marque" href="/" aria-label="UNIQUE ART VISUEL STUDIO, retour à l’accueil">
+                        <img src="/assets/brand/unique-art-emblem.jpg" width="42" height="42" alt="" loading="lazy">
+                        <span><strong>UNIQUE ART</strong><small>VISUEL STUDIO</small></span>
+                    </a>
+                    <p class="devise">« Là où le dessin pense »</p>
+                    <p>Studio indépendant de création et de production artistique, littéraire et visuelle. L’excellence, notre Leitmotiv.</p>
+                </div>
+                <div>
+                    <h2>Découvrir</h2>
+                    <ul>
+                        <li><a href="/creations">Créations</a></li>
+                        <li><a href="/oeuvres">Œuvres &amp; publications</a></li>
+                        <li><a href="/boutique">Boutique</a></li>
+                        <li><a href="/actualites">Actualités</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Le studio</h2>
+                    <ul>
+                        <li><a href="/studio">À propos</a></li>
+                        <li><a href="/services">Services &amp; tarifs</a></li>
+                        <li><a href="/assistant">Assistant de lecture IA</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/compte">Mon compte</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Informations légales</h2>
+                    <ul>
+                        <li><a href="/mentions-legales">Mentions légales</a></li>
+                        <li><a href="/confidentialite">Politique de confidentialité</a></li>
+                        <li><a href="/cookies">Politique relative aux cookies</a></li>
+                        <li><a href="/conditions-utilisation">Conditions générales d’utilisation</a></li>
+                        <li><a href="/conditions-vente">Conditions générales de vente</a></li>
+                        <li><a href="/remboursement">Remboursement et réclamations</a></li>
+                        <li><a href="/licence-oeuvres-numeriques">Licence des œuvres numériques</a></li>
+                        <li><a href="/propriete-intellectuelle">Propriété intellectuelle</a></li>
+                        <li><a href="/conditions-ia">Conditions de l’assistant IA</a></li>
+                        <li><a href="/paiement-livraison">Paiement et livraison numérique</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Autres services</h2>
+                    <ul>
+                        <li><a href="/appareils.html">Mes appareils</a></li>
+                        <li><a href="/assistance-appareils.html">Assistance appareils</a></li>
+                        <li><a href="/admin" rel="nofollow">Espace studio</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pied-bas">
+                <span>© <span data-annee>2026</span> UNIQUE ART VISUEL STUDIO. Tous droits réservés.</span>
+                <span>L’excellence, notre Leitmotiv.</span>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

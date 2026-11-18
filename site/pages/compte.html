@@ -1,0 +1,102 @@
+<!--{"titre":"Mon compte","description":"Espace client d’UNIQUE ART VISUEL STUDIO : commandes, paiements, demandes de devis et échanges avec le studio.","chemin":"/compte","nav":"compte","robots":"noindex, nofollow","scripts":["compte"]}-->
+<section class="heros-page">
+    <div class="conteneur">
+        <p class="surtitre">Espace client</p>
+        <h1 id="titreCompte">Mon compte</h1>
+        <p class="chapeau" id="chapeauCompte">Suivez vos commandes, vos demandes de devis et vos échanges avec le studio.</p>
+    </div>
+</section>
+
+<section class="section" id="zoneVisiteur" aria-labelledby="titreCompte">
+    <div class="conteneur bloc-deux">
+        <div class="panneau">
+            <div class="onglets" role="tablist" aria-label="Accès au compte">
+                <button class="onglet" role="tab" id="ongletConnexion" aria-controls="panneauConnexion" aria-selected="true">Connexion</button>
+                <button class="onglet" role="tab" id="ongletInscription" aria-controls="panneauInscription" aria-selected="false" tabindex="-1">Créer un compte</button>
+            </div>
+            <form id="panneauConnexion" class="formulaire" role="tabpanel" aria-labelledby="ongletConnexion" novalidate>
+                <div class="champ"><label for="connexionEmail">Adresse e-mail</label><input id="connexionEmail" name="email" type="email" autocomplete="username" required></div>
+                <div class="champ"><label for="connexionMotDePasse">Mot de passe</label><input id="connexionMotDePasse" name="motDePasse" type="password" autocomplete="current-password" required></div>
+                <button class="btn" type="submit">Se connecter</button>
+                <button class="btn btn-discret" type="button" id="lienOubli">Mot de passe oublié ?</button>
+                <p class="statut" role="status" aria-live="polite"></p>
+            </form>
+            <form id="panneauInscription" class="formulaire" role="tabpanel" aria-labelledby="ongletInscription" hidden novalidate>
+                <div class="champ"><label for="inscriptionNom">Nom complet ou structure</label><input id="inscriptionNom" name="nom" autocomplete="name" required maxlength="100"></div>
+                <div class="champ"><label for="inscriptionEmail">Adresse e-mail</label><input id="inscriptionEmail" name="email" type="email" autocomplete="email" required maxlength="150"></div>
+                <div class="champ"><label for="inscriptionTelephone">Téléphone / WhatsApp</label><input id="inscriptionTelephone" name="telephone" type="tel" autocomplete="tel" required maxlength="40"></div>
+                <div class="champ"><label for="inscriptionMotDePasse">Mot de passe</label><input id="inscriptionMotDePasse" name="motDePasse" type="password" autocomplete="new-password" required minlength="10" maxlength="128"><span class="aide">10 caractères minimum.</span></div>
+                <label class="case"><input type="checkbox" name="conditions" required> <span>J’accepte les <a href="/conditions-utilisation" target="_blank">conditions générales d’utilisation</a> et j’ai pris connaissance de la <a href="/confidentialite" target="_blank">politique de confidentialité</a>.</span></label>
+                <button class="btn" type="submit">Créer mon compte</button>
+                <p class="statut" role="status" aria-live="polite"></p>
+            </form>
+            <form id="panneauOubli" class="formulaire" hidden novalidate>
+                <h2>Mot de passe oublié</h2>
+                <p>Indiquez l’adresse de votre compte : si elle existe, vous recevrez un lien valable 30 minutes.</p>
+                <div class="champ"><label for="oubliEmail">Adresse e-mail</label><input id="oubliEmail" name="email" type="email" autocomplete="email" required></div>
+                <button class="btn" type="submit">Recevoir le lien</button>
+                <button class="btn btn-discret" type="button" data-retour>Retour à la connexion</button>
+                <p class="statut" role="status" aria-live="polite"></p>
+            </form>
+            <form id="panneauReinitialisation" class="formulaire" hidden novalidate>
+                <h2>Nouveau mot de passe</h2>
+                <div class="champ"><label for="nouveauMotDePasse">Nouveau mot de passe</label><input id="nouveauMotDePasse" name="motDePasse" type="password" autocomplete="new-password" required minlength="10" maxlength="128"><span class="aide">10 caractères minimum.</span></div>
+                <button class="btn" type="submit">Enregistrer</button>
+                <p class="statut" role="status" aria-live="polite"></p>
+            </form>
+        </div>
+        <div>
+            <h2>Votre espace</h2>
+            <ul class="liste-points">
+                <li>L’historique de vos commandes et de leurs paiements.</li>
+                <li>Le suivi de vos demandes de devis et des réponses du studio.</li>
+                <li>Vos téléchargements, lorsque les éditions numériques seront disponibles.</li>
+                <li>La gestion de vos données personnelles.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="zoneClient" hidden>
+    <div class="conteneur admin-grille">
+        <nav class="admin-menu" aria-label="Rubriques du compte">
+            <a href="#profil">Profil</a>
+            <a href="#commandes">Commandes et paiements</a>
+            <a href="#demandes">Demandes et projets</a>
+            <a href="#telechargements">Téléchargements</a>
+            <a href="#donnees">Mes données</a>
+        </nav>
+        <div>
+            <div class="panneau" id="profil">
+                <h2>Profil</h2>
+                <dl class="fiche" id="profilDetails"></dl>
+                <div id="blocVerification" class="note" hidden>
+                    <p>Confirmez votre adresse e-mail pour retrouver les demandes et commandes envoyées avant votre connexion. Par sécurité, elles restent masquées tant que l’adresse n’est pas vérifiée.</p>
+                    <button class="btn btn-discret" type="button" id="boutonVerification">Recevoir le lien de confirmation</button>
+                    <p class="statut" id="statutVerification" role="status" aria-live="polite"></p>
+                </div>
+                <div class="groupe-boutons"><button class="btn btn-discret" type="button" id="boutonDeconnexion">Se déconnecter</button></div>
+            </div>
+            <div class="panneau" id="commandes">
+                <h2>Commandes et paiements</h2>
+                <ul class="liste-elements" id="listeCommandes"></ul>
+            </div>
+            <div class="panneau" id="demandes">
+                <div class="element-entete"><h2>Demandes et projets</h2><a class="btn btn-discret" href="/services#devis">Nouvelle demande</a></div>
+                <ul class="liste-elements" id="listeDemandes"></ul>
+            </div>
+            <div class="panneau" id="telechargements">
+                <h2>Téléchargements</h2>
+                <p>Vos achats numériques apparaîtront ici. Chaque téléchargement se fera par un lien sécurisé et temporaire, après confirmation du paiement.</p>
+            </div>
+            <div class="panneau" id="donnees">
+                <h2>Mes données</h2>
+                <p>Vous pouvez demander l’accès à vos données, leur rectification ou la suppression de votre compte. Le studio traite la demande après une vérification raisonnable de votre identité.</p>
+                <div class="groupe-boutons">
+                    <a class="btn btn-discret" href="/contact?sujet=donnees">Exercer mes droits</a>
+                    <a class="btn btn-discret" href="/confidentialite">Politique de confidentialité</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -923,7 +923,7 @@ function saveCreations(creations) {
 
 function mettreAJourCompteursCreations(nombre) {
     document
-        .querySelectorAll("#nombreCreations")
+        .querySelectorAll("#nombreCreations, #nombreCreationsAdmin")
         .forEach(element => {
             element.textContent = nombre;
         });
@@ -1788,6 +1788,7 @@ async function connexionAdmin(event) {
         await actualiserBoiteReception();
         await actualiserComptabilite();
         await actualiserSourcesAssistant();
+        await initialiserDiscussions();
     } catch (error) {
         if (erreur) erreur.textContent = error.message === "MODE_LOCAL"
             ? "Lancez le site avec son serveur pour accéder à l’espace studio."
@@ -1809,6 +1810,7 @@ async function deconnexionAdmin() {
     if (dashboard) {
         dashboard.style.display = "none";
     }
+    await initialiserDiscussions();
 }
 
 
@@ -2277,8 +2279,17 @@ async function traiterRetourPaiement() {
    DISCUSSIONS / COMMUNAUTE
    ========================================================= */
 
+// Copie locale des seules demandes envoyées depuis ce navigateur.
+// L'ancienne clé pouvait contenir les demandes privées de tous les clients
+// (copiées lors d'une session administrateur) : elle est supprimée au chargement.
 const DISCUSSIONS_KEY =
-    "uniqueArtDiscussions";
+    "uniqueArtMesDemandes";
+const ANCIENNE_CLE_DISCUSSIONS = "uniqueArtDiscussions";
+try {
+    localStorage.removeItem(ANCIENNE_CLE_DISCUSSIONS);
+} catch {
+    /* stockage local indisponible */
+}
 
 
 function getSavedDiscussions() {
@@ -2306,82 +2317,232 @@ function saveDiscussions(discussions) {
 }
 
 
-function renderDiscussions(discussions) {
-    const liste =
-        document.getElementById(
-            "discussionList"
-        );
-
+function renderDiscussions(discussions, { admin = false } = {}) {
+    const liste = document.getElementById("discussionList");
     if (!liste) return;
+    liste.replaceChildren();
 
-    liste.innerHTML = "";
-
-    if (
-        !Array.isArray(discussions) ||
-        discussions.length === 0
-    ) {
-        liste.innerHTML =
-            "<p>Aucune discussion pour le moment.</p>";
+    if (!Array.isArray(discussions) || discussions.length === 0) {
+        const vide = document.createElement("p");
+        vide.textContent = admin
+            ? "Aucune demande client pour le moment."
+            : "Vos demandes envoyées depuis cet appareil apparaîtront ici.";
+        liste.appendChild(vide);
         return;
     }
 
-    discussions.forEach(discussion => {
-        const element =
-            document.createElement("article");
+    [...discussions].reverse().forEach((discussion) => {
+        const element = document.createElement("article");
+        element.className = "discussion-card";
+        element.dataset.id = discussion.id;
 
-        element.className =
-            "discussion-card";
+        const titre = document.createElement("h4");
+        titre.textContent = discussion.nom || discussion.name || "Anonyme";
+        const type = document.createElement("p");
+        type.className = "discussion-type";
+        type.textContent = discussion.type || "Discussion";
+        const message = document.createElement("p");
+        message.className = "discussion-message";
+        message.textContent = discussion.message || "";
+        element.append(titre, type, message);
 
-        element.innerHTML = `
-            <h4>
-                ${echapperHTML(
-                    discussion.nom || discussion.name ||
-                    "Anonyme"
-                )}
-            </h4>
+        if (admin && discussion.email) {
+            const email = document.createElement("p");
+            email.className = "discussion-meta";
+            email.textContent = `${discussion.email} · ${discussion.date ? new Date(discussion.date).toLocaleString("fr-FR") : ""}`;
+            element.appendChild(email);
+        }
 
-            <p class="discussion-type">
-                ${echapperHTML(
-                    discussion.type ||
-                    "Discussion"
-                )}
-            </p>
+        (discussion.replies || []).forEach((reponse) => {
+            const bloc = document.createElement("p");
+            bloc.className = "client-discussion-reply";
+            bloc.textContent = `Réponse du studio : ${reponse.message}`;
+            element.appendChild(bloc);
+        });
 
-            <p>
-                ${echapperHTML(
-                    discussion.message ||
-                    ""
-                )}
-            </p>
-        `;
+        const traduction = document.createElement("p");
+        traduction.className = "discussion-translation";
+        traduction.hidden = true;
+        traduction.setAttribute("aria-live", "polite");
+
+        const actions = document.createElement("div");
+        actions.className = "discussion-actions";
+        const ajouterBouton = (libelle, action) => {
+            const bouton = document.createElement("button");
+            bouton.type = "button";
+            bouton.className = "secondary-button";
+            bouton.textContent = libelle;
+            bouton.dataset.action = action;
+            actions.appendChild(bouton);
+        };
+        ajouterBouton("Traduire", "traduire");
+        if (admin) {
+            ajouterBouton("Répondre", "repondre");
+            ajouterBouton("Supprimer", "supprimer");
+            ajouterBouton("Bloquer l’expéditeur", "bloquer");
+        }
+        element.append(actions, traduction);
+
+        if (admin) {
+            const formulaire = document.createElement("form");
+            formulaire.className = "discussion-reply-form";
+            formulaire.hidden = true;
+            const champ = document.createElement("textarea");
+            champ.required = true;
+            champ.maxLength = 2000;
+            champ.placeholder = "Votre réponse (envoyée par e-mail au client)…";
+            champ.setAttribute("aria-label", "Réponse au client");
+            const envoyer = document.createElement("button");
+            envoyer.type = "submit";
+            envoyer.className = "publish-button";
+            envoyer.textContent = "Envoyer la réponse";
+            formulaire.append(champ, envoyer);
+            element.appendChild(formulaire);
+        }
+
+        const statut = document.createElement("p");
+        statut.className = "status-message";
+        statut.setAttribute("aria-live", "polite");
+        element.appendChild(statut);
 
         liste.appendChild(element);
     });
 }
 
 
-async function initialiserDiscussions() {
-    const locales =
-        getSavedDiscussions();
+let discussionsModeAdmin = false;
 
-    renderDiscussions(locales);
+async function gererActionDiscussion(event) {
+    const bouton = event.target.closest("button[data-action]");
+    const carte = event.target.closest(".discussion-card");
+    if (!bouton || !carte) return;
+    const id = carte.dataset.id;
+    const statut = carte.querySelector(".status-message");
+    const afficherStatut = (texte, erreur = false) => {
+        if (!statut) return;
+        statut.classList.toggle("error", erreur);
+        statut.classList.toggle("success", !erreur && Boolean(texte));
+        statut.textContent = texte;
+    };
 
+    if (bouton.dataset.action === "traduire") {
+        const zone = carte.querySelector(".discussion-translation");
+        const langue = document.getElementById("discussionLanguage")?.value || "fr";
+        if (langue === "fr") {
+            afficherStatut("Choisissez d’abord une langue de lecture autre que le français.", true);
+            return;
+        }
+        bouton.disabled = true;
+        afficherStatut("Traduction en cours…");
+        try {
+            zone.textContent = await traduireTexte(carte.querySelector(".discussion-message")?.textContent || "", langue);
+            zone.hidden = false;
+            afficherStatut("");
+        } catch (error) {
+            afficherStatut(error.message || "Le service de traduction est indisponible.", true);
+        } finally {
+            bouton.disabled = false;
+        }
+        return;
+    }
+
+    if (!discussionsModeAdmin || !/^\d+$/.test(id || "")) return;
+
+    if (bouton.dataset.action === "repondre") {
+        const formulaire = carte.querySelector(".discussion-reply-form");
+        if (formulaire) {
+            formulaire.hidden = !formulaire.hidden;
+            if (!formulaire.hidden) formulaire.querySelector("textarea")?.focus();
+        }
+        return;
+    }
+
+    if (bouton.dataset.action === "supprimer") {
+        if (!window.confirm("Supprimer définitivement cette demande ?")) return;
+        try {
+            await appelerApi(`/discussions/${id}`, { method: "DELETE" });
+            await initialiserDiscussions();
+        } catch (error) {
+            afficherStatut(error.message || "Suppression impossible.", true);
+        }
+        return;
+    }
+
+    if (bouton.dataset.action === "bloquer") {
+        if (!window.confirm("Bloquer cet expéditeur ? Ses demandes seront retirées de la liste.")) return;
+        try {
+            await appelerApi(`/discussions/${id}/block`, { method: "POST" });
+            await initialiserDiscussions();
+        } catch (error) {
+            afficherStatut(error.message || "Blocage impossible.", true);
+        }
+    }
+}
+
+
+async function envoyerReponseDiscussion(event) {
+    const formulaire = event.target.closest(".discussion-reply-form");
+    if (!formulaire) return;
+    event.preventDefault();
+    const carte = formulaire.closest(".discussion-card");
+    const statut = carte?.querySelector(".status-message");
+    const champ = formulaire.querySelector("textarea");
+    const bouton = formulaire.querySelector("button[type='submit']");
+    const message = champ?.value.trim();
+    if (!message || !carte) return;
+    const id = carte.dataset.id;
+    if (bouton) bouton.disabled = true;
     try {
-        const serveur =
-            await appelerApi(
-                "/discussions"
-            );
-
-        if (Array.isArray(serveur)) {
-            if (serveur.length || locales.length === 0) {
-                saveDiscussions(serveur);
-                renderDiscussions(serveur);
-            }
+        const resultat = await appelerApi(`/discussions/${id}/reply`, {
+            method: "POST",
+            body: JSON.stringify({ message })
+        });
+        await initialiserDiscussions();
+        const statutActualise = document.querySelector(`.discussion-card[data-id="${CSS.escape(id)}"] .status-message`);
+        if (statutActualise) {
+            statutActualise.classList.add("success");
+            statutActualise.textContent = resultat?.emailEnvoye
+                ? "Réponse enregistrée et envoyée par e-mail."
+                : "Réponse enregistrée. L’e-mail n’a pas pu être envoyé : le client la verra dans son espace.";
         }
     } catch (error) {
-        console.info(
-            "Discussions serveur indisponibles."
-        );
+        if (statut) {
+            statut.classList.add("error");
+            statut.textContent = error.message || "La réponse n’a pas pu être envoyée.";
+        }
+    } finally {
+        if (bouton) bouton.disabled = false;
+    }
+}
+
+
+async function initialiserDiscussions() {
+    const liste = document.getElementById("discussionList");
+    if (liste && !liste.dataset.actionsBranchees) {
+        liste.addEventListener("click", gererActionDiscussion);
+        liste.addEventListener("submit", envoyerReponseDiscussion);
+        liste.dataset.actionsBranchees = "true";
+    }
+
+    let estAdmin = false;
+    try {
+        estAdmin = (await appelerApi("/admin/session"))?.authenticated === true;
+    } catch {
+        estAdmin = false;
+    }
+    discussionsModeAdmin = estAdmin;
+
+    if (!estAdmin) {
+        renderDiscussions(getSavedDiscussions());
+        return;
+    }
+
+    try {
+        // Les demandes privées des clients ne sont jamais copiées dans le stockage du navigateur.
+        const serveur = await appelerApi("/discussions");
+        renderDiscussions(Array.isArray(serveur) ? serveur : [], { admin: true });
+    } catch (error) {
+        console.info("Discussions serveur indisponibles.");
     }
 }
 
@@ -2446,10 +2607,19 @@ async function envoyerDiscussion(event) {
                 body: JSON.stringify(discussion)
             }
         );
-        const discussions = getSavedDiscussions();
-        discussions.push(publiee);
-        saveDiscussions(discussions);
-        renderDiscussions(discussions);
+        if (discussionsModeAdmin) {
+            await initialiserDiscussions();
+        } else {
+            const discussions = [...getSavedDiscussions(), {
+                id: publiee.id,
+                name: publiee.name,
+                type: publiee.type,
+                message: publiee.message,
+                date: publiee.date
+            }].slice(-20);
+            saveDiscussions(discussions);
+            renderDiscussions(discussions);
+        }
         if (statut) {
             statut.classList.add("success");
             statut.textContent = "Votre demande a bien été envoyée au studio.";
@@ -2472,64 +2642,18 @@ async function envoyerDiscussion(event) {
    TRADUCTION
    ========================================================= */
 
-async function traduireTexte(
-    texte,
-    langueCible
-) {
+async function traduireTexte(texte, langueCible) {
     if (!texte) return "";
-
-    try {
-        const resultat =
-            await appelerApi(
-                "/translate",
-                {
-                    method: "POST",
-                    body: JSON.stringify({
-                        text: texte,
-                        targetLanguage: langueCible
-                    })
-                }
-            );
-
-        if (resultat?.translation) {
-            return resultat.translation;
-        }
-    } catch (error) {
-        console.info(
-            "API traduction indisponible."
-        );
+    // La traduction passe uniquement par le serveur du studio : le navigateur
+    // n'envoie plus directement le texte à un service tiers.
+    const resultat = await appelerApi("/translate", {
+        method: "POST",
+        body: JSON.stringify({ text: texte, targetLanguage: langueCible })
+    });
+    if (typeof resultat?.translation !== "string" || !resultat.translation.trim()) {
+        throw new Error("Le service de traduction est indisponible.");
     }
-
-    /*
-     * MyMemory comme solution de secours.
-     */
-
-    try {
-        const langueSource = "fr";
-
-        const url =
-            "https://api.mymemory.translated.net/get" +
-            `?q=${encodeURIComponent(texte)}` +
-            `&langpair=${langueSource}|${encodeURIComponent(langueCible)}`;
-
-        const reponse =
-            await fetch(url);
-
-        const donnees =
-            await reponse.json();
-
-        return (
-            donnees?.responseData?.translatedText ||
-            texte
-        );
-
-    } catch (error) {
-        console.info(
-            "Traduction de secours indisponible."
-        );
-
-        return texte;
-    }
+    return resultat.translation;
 }
 
 
@@ -2783,8 +2907,8 @@ async function creerCompteClient(event) {
             statut.classList.remove("error");
             statut.classList.add("success");
             statut.textContent = resultat?.emailEnvoye
-                ? "Compte créé. Un e-mail de confirmation vous a été envoyé."
-                : "Compte créé. L’envoi de l’e-mail de confirmation est momentanément indisponible.";
+                ? "Compte créé. Ouvrez le lien reçu par e-mail pour confirmer votre adresse : vos demandes et commandes antérieures apparaîtront ensuite dans votre espace."
+                : "Compte créé. L’e-mail de confirmation n’a pas pu être envoyé ; vous pourrez demander un nouveau lien depuis votre espace client.";
         }
         event?.target?.reset();
     } catch (error) {
@@ -2904,6 +3028,58 @@ function afficherSessionClient(client) {
             client?.email ||
             "";
     }
+
+    const blocVerification = document.getElementById("clientEmailVerification");
+    if (blocVerification) blocVerification.hidden = client?.emailVerifie === true;
+}
+
+
+async function demanderVerificationEmail() {
+    const statut = document.getElementById("clientEmailVerificationStatus");
+    const bouton = document.getElementById("clientEmailVerificationButton");
+    if (bouton) bouton.disabled = true;
+    try {
+        const resultat = await appelerApi("/client/email-verification", { method: "POST" });
+        if (statut) {
+            statut.classList.remove("error");
+            statut.classList.add("success");
+            statut.textContent = resultat?.dejaVerifie
+                ? "Votre adresse est déjà confirmée."
+                : resultat?.message || "Lien envoyé.";
+        }
+    } catch (error) {
+        if (statut) {
+            statut.classList.remove("success");
+            statut.classList.add("error");
+            statut.textContent = error.message || "Envoi impossible pour le moment.";
+        }
+    } finally {
+        if (bouton) bouton.disabled = false;
+    }
+}
+
+
+async function traiterVerificationEmail() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("verifier_email");
+    if (!token) return;
+    params.delete("verifier_email");
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+    const notice = document.getElementById("paymentReturnNotice");
+    try {
+        const resultat = await appelerApi("/email/verify", { method: "POST", body: JSON.stringify({ token }) });
+        if (notice) {
+            notice.hidden = false;
+            notice.classList.add("is-success");
+            notice.textContent = `${resultat?.message || "Adresse confirmée."} Connectez-vous pour retrouver vos demandes et commandes.`;
+        }
+    } catch (error) {
+        if (notice) {
+            notice.hidden = false;
+            notice.textContent = error.message || "Le lien de vérification est invalide ou expiré.";
+        }
+    }
 }
 
 
@@ -2914,7 +3090,7 @@ async function chargerCommandesClient() {
     try {
         const commandes = await appelerApi("/client/orders");
         if (!Array.isArray(commandes) || commandes.length === 0) {
-            liste.textContent = "Aucune commande n’est encore associée à cette adresse e-mail.";
+            liste.textContent = "Aucune commande n’est encore associée à votre compte.";
             return;
         }
         liste.innerHTML = commandes.map((commande) => {
@@ -2934,7 +3110,7 @@ async function chargerEchangesClient() {
     try {
         const discussions = await appelerApi("/client/discussions");
         if (!Array.isArray(discussions) || discussions.length === 0) {
-            liste.textContent = "Aucune demande enregistrée pour cette adresse e-mail.";
+            liste.textContent = "Aucune demande n’est encore associée à votre compte.";
             return;
         }
         liste.innerHTML = discussions.map((discussion) => {
@@ -3102,7 +3278,7 @@ document.addEventListener(
         /*
          * Session client
          */
-        chargerSessionClient();
+        traiterVerificationEmail().finally(chargerSessionClient);
 
         /*
          * Administration
@@ -3228,6 +3404,7 @@ window.connexionClient =
 window.ouvrirConnexionClient = ouvrirConnexionClient;
 window.fermerConnexionClient = fermerConnexionClient;
 window.deconnecterClient = deconnecterClient;
+window.demanderVerificationEmail = demanderVerificationEmail;
 
 window.guideVisiteur =
     guideVisiteur;

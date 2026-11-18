@@ -1,0 +1,106 @@
+<!--{"titre":"Boutique","description":"La boutique du studio : librairie numérique des œuvres d’Ando Dieudonné-Jean N’dé et commande en ligne de prestations d’illustration, de bande dessinée et de character design, en FCFA.","chemin":"/boutique","nav":"boutique","scripts":["boutique"],"priorite":"0.9"}-->
+<section class="heros-page">
+    <div class="conteneur">
+        <nav class="fil-ariane" aria-label="Fil d’Ariane"><a href="/">Accueil</a> / Boutique</nav>
+        <p class="surtitre">Boutique du studio</p>
+        <h1>Livres et créations sur commande</h1>
+        <p class="chapeau">Retrouvez les œuvres du studio et commandez une création. Les prix sont indiqués en francs CFA (FCFA) ; le paiement s’effectue sur la page sécurisée de notre prestataire.</p>
+    </div>
+</section>
+
+<section class="section" id="librairie" aria-labelledby="titreLibrairie">
+    <div class="conteneur">
+        <div class="entete-section apparition">
+            <div>
+                <p class="surtitre">Librairie numérique</p>
+                <h2 id="titreLibrairie">Les livres du studio</h2>
+                <p class="chapeau">La vente des éditions numériques directement sur ce site est en préparation : téléchargement sécurisé après paiement, et accès à l’assistant de lecture pour chaque ouvrage acheté. En attendant, nos œuvres sont proposées dans notre boutique en ligne partenaire.</p>
+            </div>
+        </div>
+        <div class="grille grille-2">
+            <article class="carte apparition">
+                <span class="numero">Œuvre philosophique</span>
+                <h3>Le Singularisme</h3>
+                <p>Une œuvre sur la pensée, l’individu, l’authenticité et la société.</p>
+                <p><span class="pastille pastille-neutre">Vente directe sur ce site bientôt disponible</span></p>
+                <div class="groupe-boutons"><a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Voir en boutique</a><a class="lien-fleche" href="/oeuvres#le-singularisme">Fiche de l’œuvre</a></div>
+            </article>
+            <article class="carte apparition">
+                <span class="numero">Récit graphique</span>
+                <h3>Le Pouvoir des Mots</h3>
+                <p>Une série sur la force du verbe, de la parole et de l’imagination.</p>
+                <p><span class="pastille pastille-neutre">Vente directe sur ce site bientôt disponible</span></p>
+                <div class="groupe-boutons"><a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Voir en boutique</a><a class="lien-fleche" href="/oeuvres#le-pouvoir-des-mots">Fiche de l’œuvre</a></div>
+            </article>
+        </div>
+        <div class="bloc-deux apparition">
+            <div>
+                <h3>Notre boutique en ligne partenaire</h3>
+                <p class="chapeau">Nos œuvres sont actuellement proposées dans notre boutique en ligne partenaire. Depuis un téléphone, vous pouvez aussi scanner le code ci-contre. Les conditions de vente de cette boutique sont celles de son exploitant.</p>
+                <a class="btn" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Accéder à la boutique en ligne</a>
+            </div>
+            <figure class="carte qr">
+                <img src="/assets/brand/boutique-qr.png" width="314" height="314" loading="lazy" alt="QR code donnant accès à la boutique en ligne partenaire du studio">
+            </figure>
+        </div>
+    </div>
+</section>
+
+<section class="section section-sombre" id="commander" aria-labelledby="titreCommande">
+    <div class="conteneur">
+        <div class="entete-section apparition">
+            <div>
+                <p class="surtitre">Commande en ligne</p>
+                <h2 id="titreCommande">Formules de création</h2>
+                <p class="chapeau">Des formules au prix fixe, réglées en ligne. Pour un projet plus vaste ou sur mesure, demandez plutôt un devis personnalisé.</p>
+            </div>
+            <a class="lien-fleche" href="/services#devis">Demander un devis</a>
+        </div>
+        <p id="paiementIndisponible" class="note" hidden>Le paiement en ligne n’est pas encore ouvert. Vous pouvez commander dès maintenant sur <a href="https://wa.me/{{WHATSAPP}}" target="_blank" rel="noopener noreferrer">WhatsApp</a> ou par une <a href="/services#devis">demande de devis</a>.</p>
+        <div id="produits" class="grille grille-4" aria-live="polite"></div>
+    </div>
+</section>
+
+<section class="section" aria-labelledby="titreReglement">
+    <div class="conteneur">
+        <div class="entete-section apparition">
+            <div>
+                <p class="surtitre">Règlement</p>
+                <h2 id="titreReglement">Paiement sécurisé</h2>
+            </div>
+            <a class="lien-fleche" href="/paiement-livraison">Paiement et livraison</a>
+        </div>
+        <div class="grille grille-4 apparition">
+            <div class="carte"><span class="numero">01</span><h3>Mobile Money</h3><p>Selon les opérateurs proposés sur la page de paiement du prestataire.</p></div>
+            <div class="carte"><span class="numero">02</span><h3>Carte bancaire</h3><p>Les cartes acceptées s’affichent sur le guichet sécurisé.</p></div>
+            <div class="carte"><span class="numero">03</span><h3>Vérification</h3><p>Une commande n’est confirmée qu’après vérification du paiement auprès du prestataire.</p></div>
+            <div class="carte"><span class="numero">04</span><h3>Confidentialité</h3><p>Le site ne reçoit ni ne conserve vos numéros de carte.</p></div>
+        </div>
+    </div>
+</section>
+
+<dialog id="dialogueCommande" class="dialogue" aria-labelledby="titreDialogueCommande">
+    <form id="formulaireCommande" class="formulaire" novalidate>
+        <div class="dialogue-tete">
+            <div>
+                <p class="surtitre">Récapitulatif</p>
+                <h2 id="titreDialogueCommande">Votre commande</h2>
+            </div>
+            <button type="button" class="assistant-icone" data-fermer aria-label="Fermer">✕</button>
+        </div>
+        <dl class="fiche">
+            <dt>Formule</dt><dd id="commandeProduit"></dd>
+            <dt>Prix total</dt><dd id="commandePrix"></dd>
+        </dl>
+        <div class="champs-2">
+            <div class="champ"><label for="commandeNom">Nom complet</label><input id="commandeNom" name="nom" autocomplete="name" required maxlength="100"></div>
+            <div class="champ"><label for="commandeTelephone">Téléphone / WhatsApp</label><input id="commandeTelephone" name="telephone" type="tel" autocomplete="tel" required maxlength="40"></div>
+        </div>
+        <div class="champ"><label for="commandeEmail">Adresse e-mail</label><input id="commandeEmail" name="email" type="email" autocomplete="email" required maxlength="150"></div>
+        <div class="champ"><label for="commandeMessage">Votre brief <span class="aide">(facultatif)</span></label><textarea id="commandeMessage" name="message" maxlength="2000" placeholder="Sujet, format, délais, références…"></textarea></div>
+        <label class="case"><input type="checkbox" id="commandeCgv" required> <span>J’ai lu et j’accepte les <a href="/conditions-vente" target="_blank">conditions générales de vente</a> et la <a href="/remboursement" target="_blank">politique de remboursement</a>.</span></label>
+        <p class="mention-donnees">Vos coordonnées servent à traiter la commande et sont transmises au prestataire de paiement. <a href="/confidentialite" target="_blank">En savoir plus</a>.</p>
+        <button class="btn" type="submit">Payer en toute sécurité</button>
+        <p id="commandeStatut" class="statut" role="status" aria-live="polite"></p>
+    </form>
+</dialog>

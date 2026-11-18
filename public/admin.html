@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Espace studio — UNIQUE ART VISUEL STUDIO</title>
+    <meta name="description" content="Espace d’administration réservé au studio.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0a0a0b">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="fr_FR">
+    <meta property="og:site_name" content="UNIQUE ART VISUEL STUDIO">
+    <meta property="og:title" content="Espace studio — UNIQUE ART VISUEL STUDIO">
+    <meta property="og:description" content="Espace d’administration réservé au studio.">
+    <meta property="og:url" content="https://unique-art-visuel-studio.vercel.app/admin">
+    <meta property="og:image" content="https://unique-art-visuel-studio.vercel.app/assets/brand/unique-art-studio.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/jpeg" href="/assets/brand/unique-art-emblem.jpg">
+    <link rel="preload" href="/assets/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/css/studio.css?v=20261118">
+    <script src="/js/core.js?v=20261118" defer></script>
+    <script src="/js/catalogue.js?v=20261118" defer></script>
+    <script src="/js/pages/admin.js?v=20261118" defer></script>
+</head>
+<body data-page="" data-whatsapp="2250759875531">
+    <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+    <header class="entete">
+        <div class="conteneur entete-interieur">
+            <a class="marque" href="/" aria-label="UNIQUE ART VISUEL STUDIO, retour à l’accueil">
+                <img src="/assets/brand/unique-art-emblem.jpg" width="42" height="42" alt="">
+                <span><strong>UNIQUE ART</strong><small>VISUEL STUDIO</small></span>
+            </a>
+            <nav class="nav-principale" id="navPrincipale" aria-label="Navigation principale">
+                <ul>
+                    <li><a href="/">Accueil</a></li>
+                    <li><a href="/creations">Créations</a></li>
+                    <li><a href="/oeuvres">Œuvres</a></li>
+                    <li><a href="/boutique">Boutique</a></li>
+                    <li><a href="/services">Services &amp; tarifs</a></li>
+                    <li><a href="/actualites">Actualités</a></li>
+                    <li><a href="/studio">Le studio</a></li>
+                    <li><a href="/portfolio">Portfolio</a></li>
+                    <li><a href="/contact">Contact</a></li>
+                    <li class="nav-mobile"><a href="/compte">Mon compte</a></li>
+                </ul>
+            </nav>
+            <div class="entete-actions">
+                <a class="btn btn-discret entete-compte" href="/compte">Mon compte</a>
+                <button class="bouton-menu" type="button" aria-expanded="false" aria-controls="navPrincipale" aria-label="Ouvrir le menu"><span></span></button>
+            </div>
+        </div>
+    </header>
+    <div id="avisGlobal" class="bandeau-avis" role="status" aria-live="polite" hidden></div>
+    <main id="contenu">
+        <section class="heros-page">
+            <div class="conteneur">
+                <p class="surtitre">Accès réservé</p>
+                <h1>Espace studio</h1>
+            </div>
+        </section>
+
+        <section class="section" id="zoneConnexionAdmin" hidden>
+            <div class="conteneur">
+                <form id="formulaireAdmin" class="formulaire panneau" novalidate>
+                    <h2>Connexion administrateur</h2>
+                    <div class="champ"><label for="motDePasseAdmin">Clé d’administration</label><input id="motDePasseAdmin" name="password" type="password" autocomplete="current-password" required><span class="aide">Valeur de la variable ADMIN_API_KEY configurée sur le serveur.</span></div>
+                    <button class="btn" type="submit">Se connecter</button>
+                    <p class="statut" role="status" aria-live="polite"></p>
+                </form>
+            </div>
+        </section>
+
+        <section class="section" id="zoneAdmin" hidden>
+            <div class="conteneur admin-grille">
+                <nav class="admin-menu" aria-label="Rubriques de l’administration">
+                    <a href="#tableau">Tableau de bord</a>
+                    <a href="#demandes">Demandes clients</a>
+                    <a href="#messagerie">Messagerie</a>
+                    <a href="#publier-actualite">Actualités</a>
+                    <a href="#publier-creation">Créations</a>
+                    <a href="#bibliotheque-ia">Bibliothèque IA</a>
+                    <a href="#services-externes">Services externes</a>
+                    <button class="btn btn-discret" type="button" id="deconnexionAdmin">Se déconnecter</button>
+                </nav>
+                <div>
+                    <div class="panneau" id="tableau">
+                        <div class="element-entete"><h2>Tableau de bord</h2><button class="btn btn-discret" type="button" id="actualiserTableau">Actualiser</button></div>
+                        <div class="indicateurs" id="indicateurs"></div>
+                        <h3>Dernières activités</h3>
+                        <ul class="liste-elements" id="activites"></ul>
+                    </div>
+
+                    <div class="panneau" id="demandes">
+                        <div class="element-entete">
+                            <h2>Demandes clients</h2>
+                            <label class="case" for="langueTraduction">Traduire vers
+                                <select id="langueTraduction"><option value="en">anglais</option><option value="es">espagnol</option><option value="pt">portugais</option><option value="de">allemand</option><option value="ar">arabe</option></select>
+                            </label>
+                        </div>
+                        <ul class="liste-elements" id="listeDemandesAdmin"></ul>
+                    </div>
+
+                    <div class="panneau" id="messagerie">
+                        <h2>Messagerie</h2>
+                        <p class="mention-donnees">Messages reçus par le formulaire de contact et, si la réception est configurée, par e-mail.</p>
+                        <ul class="liste-elements" id="boiteReception"></ul>
+                    </div>
+
+                    <div class="panneau" id="publier-actualite">
+                        <h2>Publier une actualité</h2>
+                        <form id="formulaireActualite" class="formulaire" novalidate>
+                            <div class="champs-2">
+                                <div class="champ"><label for="actualiteTitre">Titre</label><input id="actualiteTitre" name="title" required maxlength="150"></div>
+                                <div class="champ"><label for="actualiteType">Type</label>
+                                    <select id="actualiteType" name="type" required>
+                                        <option>Actualité du studio</option><option>Nouvelle publication</option><option>Événement</option><option>Salon</option><option>Coulisses de création</option><option>Communiqué</option><option>Annonce commerciale</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="champ"><label for="actualiteContenu">Texte</label><textarea id="actualiteContenu" name="content" required maxlength="2000"></textarea></div>
+                            <button class="btn" type="submit">Publier</button>
+                            <p class="statut" role="status" aria-live="polite"></p>
+                        </form>
+                    </div>
+
+                    <div class="panneau" id="publier-creation">
+                        <h2>Ajouter une création</h2>
+                        <form id="formulaireCreation" class="formulaire" novalidate>
+                            <div class="champs-2">
+                                <div class="champ"><label for="creationTitre">Titre</label><input id="creationTitre" name="title" required maxlength="150"></div>
+                                <div class="champ"><label for="creationCategorie">Catégorie</label><select id="creationCategorie" name="category"></select></div>
+                            </div>
+                            <div class="champ"><label for="creationDescription">Description et intention artistique</label><textarea id="creationDescription" name="description" maxlength="2000"></textarea></div>
+                            <div class="champs-2">
+                                <div class="champ"><label for="creationImage">Image</label><input id="creationImage" name="image" type="file" accept="image/jpeg,image/png,image/webp"></div>
+                                <div class="champ"><label for="creationVideo">Vidéo <span class="aide">(facultatif)</span></label><input id="creationVideo" name="video" type="file" accept="video/mp4,video/webm"></div>
+                            </div>
+                            <div class="champ"><label for="creationPdf">PDF consultable <span class="aide">(facultatif, public)</span></label><input id="creationPdf" name="pdf" type="file" accept="application/pdf"></div>
+                            <p class="note">Les fichiers sont actuellement enregistrés dans la base de données du site : limitez chaque envoi à 4 Mo au total. Le stockage de fichiers dédié est prévu dans la suite de la refonte.</p>
+                            <button class="btn" type="submit">Publier la création</button>
+                            <p class="statut" role="status" aria-live="polite"></p>
+                        </form>
+                    </div>
+
+                    <div class="panneau" id="bibliotheque-ia">
+                        <h2>Bibliothèque de l’assistant IA</h2>
+                        <p>Importez le texte intégral d’une œuvre : il est découpé en passages, indexé et consulté par l’assistant au moment de répondre. Le texte n’est pas publié sur le site et aucun modèle n’est réentraîné. Seuls les passages utiles à une question sont transmis au fournisseur d’IA configuré.</p>
+                        <form id="formulaireBibliotheque" class="formulaire" novalidate>
+                            <div class="champs-2">
+                                <div class="champ"><label for="bibliothequeTitre">Titre de l’œuvre</label><input id="bibliothequeTitre" name="title" required maxlength="150" placeholder="Ex. Le Singularisme"></div>
+                                <div class="champ"><label for="bibliothequeFichier">Manuscrit PDF, TXT ou Markdown</label><input id="bibliothequeFichier" name="fichier" type="file" required accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"></div>
+                            </div>
+                            <p class="mention-donnees">Le PDF doit contenir du texte sélectionnable (sinon, faites d’abord une reconnaissance de caractères). N’importez que des œuvres dont le studio détient les droits.</p>
+                            <button class="btn" type="submit">Indexer l’œuvre</button>
+                            <p class="statut" role="status" aria-live="polite"></p>
+                        </form>
+                        <h3>Œuvres indexées</h3>
+                        <ul class="liste-elements" id="listeBibliotheque"></ul>
+                    </div>
+
+                    <div class="panneau" id="services-externes">
+                        <h2>Services externes</h2>
+                        <p class="mention-donnees">État de la configuration du serveur (aucune clé n’est affichée).</p>
+                        <dl class="fiche" id="etatServices"></dl>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer class="pied">
+        <div class="conteneur">
+            <div class="pied-grille">
+                <div class="pied-marque">
+                    <a class="marque" href="/" aria-label="UNIQUE ART VISUEL STUDIO, retour à l’accueil">
+                        <img src="/assets/brand/unique-art-emblem.jpg" width="42" height="42" alt="" loading="lazy">
+                        <span><strong>UNIQUE ART</strong><small>VISUEL STUDIO</small></span>
+                    </a>
+                    <p class="devise">« Là où le dessin pense »</p>
+                    <p>Studio indépendant de création et de production artistique, littéraire et visuelle. L’excellence, notre Leitmotiv.</p>
+                </div>
+                <div>
+                    <h2>Découvrir</h2>
+                    <ul>
+                        <li><a href="/creations">Créations</a></li>
+                        <li><a href="/oeuvres">Œuvres &amp; publications</a></li>
+                        <li><a href="/boutique">Boutique</a></li>
+                        <li><a href="/actualites">Actualités</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Le studio</h2>
+                    <ul>
+                        <li><a href="/studio">À propos</a></li>
+                        <li><a href="/services">Services &amp; tarifs</a></li>
+                        <li><a href="/assistant">Assistant de lecture IA</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/compte">Mon compte</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Informations légales</h2>
+                    <ul>
+                        <li><a href="/mentions-legales">Mentions légales</a></li>
+                        <li><a href="/confidentialite">Politique de confidentialité</a></li>
+                        <li><a href="/cookies">Politique relative aux cookies</a></li>
+                        <li><a href="/conditions-utilisation">Conditions générales d’utilisation</a></li>
+                        <li><a href="/conditions-vente">Conditions générales de vente</a></li>
+                        <li><a href="/remboursement">Remboursement et réclamations</a></li>
+                        <li><a href="/licence-oeuvres-numeriques">Licence des œuvres numériques</a></li>
+                        <li><a href="/propriete-intellectuelle">Propriété intellectuelle</a></li>
+                        <li><a href="/conditions-ia">Conditions de l’assistant IA</a></li>
+                        <li><a href="/paiement-livraison">Paiement et livraison numérique</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Autres services</h2>
+                    <ul>
+                        <li><a href="/appareils.html">Mes appareils</a></li>
+                        <li><a href="/assistance-appareils.html">Assistance appareils</a></li>
+                        <li><a href="/admin" rel="nofollow">Espace studio</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pied-bas">
+                <span>© <span data-annee>2026</span> UNIQUE ART VISUEL STUDIO. Tous droits réservés.</span>
+                <span>L’excellence, notre Leitmotiv.</span>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

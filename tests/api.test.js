@@ -142,6 +142,11 @@ test("administration : mot de passe vérifié, routes protégées", async () => 
     assert.equal(connexion.status, 200);
     assert.equal((await api("/api/admin/session", { cookie: connexion.cookie })).json.authenticated, true);
     assert.equal((await api("/api/admin/session")).json.authenticated, false);
+    // Cookie signé : un jeton falsifié ou modifié est refusé.
+    const faux = "unique_art_admin=" + Buffer.from(JSON.stringify({ role: "admin", expireLe: Date.now() + 60000 })).toString("base64url") + ".AAAA";
+    assert.equal((await api("/api/admin/session", { cookie: faux })).json.authenticated, false);
+    assert.equal((await api("/api/admin/session", { cookie: connexion.cookie + "x" })).json.authenticated, false);
+    assert.equal((await api("/api/admin/inbox", { cookie: faux })).status, 401);
 });
 
 test("discussions : création publique, suppression réservée à l'admin", async () => {
@@ -221,4 +226,101 @@ test("publications simultanées : identifiants distincts, aucune perte", async (
     const admin = await api("/api/admin/session", { method: "POST", body: { password: ADMIN_KEY } });
     const toutes = await api("/api/discussions", { cookie: admin.cookie });
     for (const id of ids) assert.ok(toutes.json.some((d) => d.id === id), `discussion ${id} perdue`);
+});
+
+// --- Phase 0 : confidentialité des demandes et commandes ---
+
+function demande(email, message) {
+    return api("/api/discussions", { method: "POST", body: { name: "Expéditeur", email, type: "Demande de devis", message } });
+}
+
+test("confidentialité : un compte non vérifié ne voit pas les demandes envoyées avec son adresse", async () => {
+    const victime = nouveauClient();
+    assert.equal((await demande(victime.email, "Projet confidentiel, budget 2 millions")).status, 201);
+    // Un tiers ouvre un compte avec l'adresse de la victime (adresse non vérifiée).
+    const { cookie } = await inscrireEtConnecter(victime);
+    const discussions = await api("/api/client/discussions", { cookie });
+    assert.equal(discussions.status, 200);
+    assert.deepEqual(discussions.json, [], "aucune demande ne doit être visible sans vérification de l'adresse");
+    const session = await api("/api/client/session", { cookie });
+    assert.equal(session.json.emailVerifie, false);
+});
+
+test("confidentialité : une demande envoyée en étant connecté est rattachée au compte", async () => {
+    const { client, cookie } = await inscrireEtConnecter();
+    const envoi = await api("/api/discussions", {
+        method: "POST", cookie,
+        body: { name: client.nom, email: client.email, type: "Projet personnalisé", message: "Demande rattachée au compte" }
+    });
+    assert.equal(envoi.status, 201);
+    const discussions = await api("/api/client/discussions", { cookie });
+    assert.equal(discussions.json.length, 1);
+    assert.equal(discussions.json[0].message, "Demande rattachée au compte");
+    // Un autre compte ne la voit pas.
+    const autre = await inscrireEtConnecter();
+    assert.deepEqual((await api("/api/client/discussions", { cookie: autre.cookie })).json, []);
+});
+
+test("vérification de l'adresse : jeton à usage unique, puis accès aux demandes antérieures", async () => {
+    const client = nouveauClient();
+    assert.equal((await demande(client.email, "Demande envoyée avant l'inscription")).status, 201);
+    const { cookie } = await inscrireEtConnecter(client);
+    // Sans service d'e-mail configuré, l'envoi du lien est refusé honnêtement.
+    assert.equal((await api("/api/client/email-verification", { method: "POST", cookie })).status, 503);
+    assert.equal((await api("/api/client/email-verification", { method: "POST" })).status, 401);
+    assert.equal((await api("/api/email/verify", { method: "POST", body: { token: "invalide" } })).status, 400);
+
+    // Simule la réception de l'e-mail : on place l'empreinte d'un jeton connu dans le stockage.
+    const crypto = require("node:crypto");
+    const token = crypto.randomBytes(32).toString("base64url");
+    const fichier = path.join(dataDir, "store.json");
+    const store = JSON.parse(fs.readFileSync(fichier, "utf8"));
+    const compte = store.clients.find((item) => item.email === client.email);
+    compte.emailVerificationTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    compte.emailVerificationExpiresAt = Date.now() + 60000;
+    fs.writeFileSync(fichier, JSON.stringify(store));
+
+    assert.equal((await api("/api/email/verify", { method: "POST", body: { token } })).status, 200);
+    assert.equal((await api("/api/email/verify", { method: "POST", body: { token } })).status, 400, "jeton à usage unique");
+    assert.equal((await api("/api/client/session", { cookie })).json.emailVerifie, true);
+    const discussions = await api("/api/client/discussions", { cookie });
+    assert.equal(discussions.json.length, 1);
+    assert.equal(discussions.json[0].message, "Demande envoyée avant l'inscription");
+});
+
+test("traduction : la langue demandée par le site est bien prise en compte", async () => {
+    // Le site envoie « targetLanguage » : une langue non prise en charge doit être refusée
+    // (auparavant ce champ était ignoré et la traduction partait toujours vers l'anglais).
+    const reponse = await api("/api/translate", { method: "POST", body: { text: "Bonjour", targetLanguage: "xx" } });
+    assert.equal(reponse.status, 400);
+});
+
+// --- Site public : pages, adresses propres, sécurité ---
+
+test("site : chaque page répond à son adresse propre, avec une politique de sécurité", async () => {
+    const pages = ["/", "/creations", "/oeuvres", "/boutique", "/services", "/actualites", "/studio", "/contact",
+        "/assistant", "/compte", "/admin", "/mentions-legales", "/confidentialite", "/cookies", "/conditions-utilisation",
+        "/conditions-vente", "/remboursement", "/licence-oeuvres-numeriques", "/propriete-intellectuelle",
+        "/conditions-ia", "/paiement-livraison"];
+    for (const page of pages) {
+        const reponse = await fetch(BASE + page, { redirect: "manual" });
+        assert.equal(reponse.status, 200, page);
+        assert.match(reponse.headers.get("content-security-policy") || "", /script-src 'self'/, page);
+        const html = await reponse.text();
+        assert.match(html, /<title>[^<]+<\/title>/, page);
+        assert.ok(!html.includes("{{"), `${page} : jeton de gabarit non remplacé`);
+    }
+});
+
+test("site : anciennes adresses redirigées, page 404, plan du site", async () => {
+    const ancienne = await fetch(`${BASE}/confidentialite.html`, { redirect: "manual" });
+    assert.equal(ancienne.status, 308);
+    assert.equal(ancienne.headers.get("location"), "/confidentialite");
+    const introuvable = await fetch(`${BASE}/page-qui-n-existe-pas`);
+    assert.equal(introuvable.status, 404);
+    assert.match(await introuvable.text(), /Cette page s’est effacée/);
+    assert.match(await (await fetch(`${BASE}/sitemap.xml`)).text(), /<loc>[^<]+\/creations<\/loc>/);
+    assert.match(await (await fetch(`${BASE}/robots.txt`)).text(), /Disallow: \/admin/);
+    assert.equal((await fetch(`${BASE}/.env`)).status, 404);
+    assert.equal((await fetch(`${BASE}/site/contact.json`)).status, 404);
 });

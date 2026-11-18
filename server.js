@@ -184,6 +184,14 @@ async function initialiserStockage() {
     }
 
     await databasePool.query("CREATE TABLE IF NOT EXISTS app_store (id integer PRIMARY KEY, payload jsonb NOT NULL)");
+    // Supabase expose le schéma public via son API (clé « anon ») : la sécurité par ligne, sans
+    // aucune politique, y interdit tout accès. Le serveur, connecté en propriétaire, n'est pas concerné.
+    await databasePool.query("ALTER TABLE app_store ENABLE ROW LEVEL SECURITY");
+    await databasePool.query(`DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+            REVOKE ALL ON TABLE app_store FROM anon, authenticated;
+        END IF;
+    END $$`);
     const result = await databasePool.query("SELECT id FROM app_store WHERE id = 1");
     if (result.rowCount === 0) {
         const initial = fs.existsSync(DATA_FILE) ? fs.readFileSync(DATA_FILE, "utf8") : JSON.stringify(STORE_VIDE());

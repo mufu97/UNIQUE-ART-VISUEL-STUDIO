@@ -60,7 +60,20 @@ const emailVerificationRequestCounts = new Map();
 const requestCounts = new Map();
 const passwordResetRequestCounts = new Map();
 const assistantRequestCounts = new Map();
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
+// Les paramètres SSL de l'adresse (ex. « sslmode=require » ajouté par Supabase ou Vercel) sont retirés :
+// pg les interprète comme une vérification stricte du certificat, ce qui échoue avec le pooler Supabase.
+// Le chiffrement reste imposé par l'option « ssl » du pool ci-dessous.
+function adresseBaseDeDonnees(brute) {
+    if (!brute) return "";
+    try {
+        const url = new URL(brute);
+        for (const parametre of ["sslmode", "sslrootcert", "sslcert", "sslkey", "supa"]) url.searchParams.delete(parametre);
+        return url.toString();
+    } catch {
+        return brute;
+    }
+}
+const DATABASE_URL = adresseBaseDeDonnees(process.env.DATABASE_URL || process.env.POSTGRES_URL || "");
 const databasePool = DATABASE_URL
     ? new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false }, max: SUR_VERCEL ? 3 : 10 })
     : null;

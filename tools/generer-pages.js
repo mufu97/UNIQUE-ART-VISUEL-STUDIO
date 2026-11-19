@@ -29,6 +29,7 @@ const NAVIGATION = [
     ["services", "/services", "Services & tarifs"],
     ["actualites", "/actualites", "Actualités"],
     ["studio", "/studio", "Le studio"],
+    ["portfolio", "/portfolio", "Portfolio"],
     ["contact", "/contact", "Contact"]
 ];
 

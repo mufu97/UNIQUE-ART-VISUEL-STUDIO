@@ -120,7 +120,7 @@ const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intri
 // Présentations publiées par l'éditeur (quatrièmes de couverture et fiches du site), fournies à l'assistant
 // comme contexte. Elles ne remplacent pas les manuscrits indexés.
 const CATALOGUE_OEUVRES = [
-    "Le Singularisme ou le Nouvel Homme (Éditions Muse, 28 septembre 2023) : œuvre philosophique sur la pensée, l’individu, l’authenticité et la société.",
+    "Le Singularisme (conte philosophique moderne, suite de nouvelles philosophiques et poétiques ; première édition : Le Singularisme ou le Nouvel Homme, Éditions Muse, 28 septembre 2023) : à Pupus, village oublié, un jeune instituteur, Kpa, découvre que l’école ne suffit pas à comprendre la vie ; les jumeaux Eatte et Cako parlent par énigmes ; Kundu meurt ; onze chapitres sur la pensée, la mémoire, la foi, le langage, le désir et le sens.",
     "Le Pouvoir des Mots : récit graphique, série sur la force du verbe, de la parole et de l’imagination.",
     "Les Délires de Pupus (roman psychologique inspiré du Singularisme) : à Pupus, village oublié, des enfants disparaissent sans papiers ni noms ; Mériam Kéita, ex-avocate devenue enquêtrice pour le gouvernement, y est envoyée et découvre un monde où un certain Kundu, enfant sans reçu, semble hanter chaque silence.",
     "Les Enfants de l’Éclipse : essai poétique en vingt-quatre courts chapitres sur l’enfance et les ombres, mêlant récit, philosophie et fragments oniriques.",
@@ -475,6 +475,7 @@ function rechercherSourcesAssistant(question, documents) {
         text: chunk.text,
         page: chunk.page,
         chapter: chunk.chapter || null,
+        termesChapitre: new Set(normaliserTermes(chunk.chapter || "")),
         terms: normaliserTermes(`${document.title} ${chunk.chapter || ""} ${chunk.text}`)
     })));
     if (!passages.length) return [];
@@ -493,6 +494,8 @@ function rechercherSourcesAssistant(question, documents) {
             const nombreDocuments = frequencesDocuments.get(terme) || 0;
             const idf = Math.log(1 + (passages.length - nombreDocuments + 0.5) / (nombreDocuments + 0.5));
             score += idf * (frequence * 2.2) / (frequence + 1.2 * (0.25 + 0.75 * passage.terms.length / (longueurMoyenne || 1)));
+            // Un mot de la question présent dans le titre du chapitre signale un passage central sur le sujet.
+            if (passage.termesChapitre.has(terme)) score += idf;
         }
         return { ...passage, score };
     }).filter((passage) => passage.score > 0)

@@ -31,7 +31,7 @@ const Catalogue = {
         { id: "l-amour-est-une-superstition", titre: "L’Amour est une superstition", genre: "Essai poétique", resume: "Une dérive amoureuse pour celles et ceux qui osent penser avec le cœur… jusqu’au vertige.", image: "/assets/oeuvres/l-amour-est-une-superstition-480.webp" },
         { id: "creer-c-est-resister", titre: "Créer, c’est résister", genre: "Essai · manifeste", resume: "Une parole contre le plagiat et pour la reconnaissance de la création africaine.", image: "/assets/oeuvres/creer-c-est-resister-480.webp" },
         { id: "les-enfants-de-l-eclipse", titre: "Les Enfants de l’Éclipse", genre: "Essai poétique", resume: "Vingt-quatre petits chapitres comme autant de lampes dans l’obscurité de l’enfance.", image: "/assets/oeuvres/les-enfants-de-l-eclipse-480.webp" },
-        { id: "le-singularisme", titre: "Le Singularisme ou le Nouvel Homme", genre: "Œuvre philosophique", auteur: "Ando Dieudonné-Jean N'dé", resume: "Une œuvre sur la pensée, l’individu, l’authenticité et la société. Éditions Muse, 2023.", couverture: "singularisme" },
+        { id: "le-singularisme", titre: "Le Singularisme", genre: "Conte philosophique", resume: "À Pupus, un jeune instituteur découvre que l’école ne suffit pas à comprendre la vie.", image: "/assets/oeuvres/le-singularisme-480.webp" },
         { id: "le-pouvoir-des-mots", titre: "Le Pouvoir des Mots", genre: "Récit graphique", auteur: "Ando Dieudonné-Jean N'dé", resume: "Une série sur la force du verbe, de la parole et de l’imagination.", couverture: "mots" }
     ]
 };

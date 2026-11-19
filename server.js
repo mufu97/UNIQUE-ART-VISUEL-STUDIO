@@ -116,17 +116,22 @@ const CONTENT_SECURITY_POLICY = [
     "form-action 'self'",
     "frame-ancestors 'self'"
 ].join("; ");
-const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intrigues?|personnages?|chapitres?|extraits?|passages?|lettres?|histoires?|themes?|singularisme|pouvoir des mots|pupus|kundu|eclipse|republique|fourmis?|marie|kpa|instant d.amour|lignes d.ombre|fins?|resumes?|interpretations?|textes?)\b/;
+const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intrigues?|personnages?|chapitres?|extraits?|passages?|lettres?|histoires?|themes?|singularisme|pouvoir des mots|pupus|kundu|eclipse|republique|fourmis?|marie|kpa|instant d.amour|lignes d.ombre|harpie|handicap\w*|plagiat|superstition|fou|folie|amour|fins?|resumes?|interpretations?|textes?)\b/;
 // Présentations publiées par l'éditeur (quatrièmes de couverture et fiches du site), fournies à l'assistant
 // comme contexte. Elles ne remplacent pas les manuscrits indexés.
 const CATALOGUE_OEUVRES = [
-    "Le Singularisme : œuvre philosophique sur la pensée, l’individu, l’authenticité et la société.",
+    "Le Singularisme ou le Nouvel Homme (Éditions Muse, 28 septembre 2023) : œuvre philosophique sur la pensée, l’individu, l’authenticité et la société.",
     "Le Pouvoir des Mots : récit graphique, série sur la force du verbe, de la parole et de l’imagination.",
     "Les Délires de Pupus (roman psychologique inspiré du Singularisme) : à Pupus, village oublié, des enfants disparaissent sans papiers ni noms ; Mériam Kéita, ex-avocate devenue enquêtrice pour le gouvernement, y est envoyée et découvre un monde où un certain Kundu, enfant sans reçu, semble hanter chaque silence.",
     "Les Enfants de l’Éclipse : essai poétique en vingt-quatre courts chapitres sur l’enfance et les ombres, mêlant récit, philosophie et fragments oniriques.",
     "Les Enfants de la Nouvelle République (fable philosophico-politique) : Ei, père et fourmi, perd son enfant faute d’un reçu ; de son deuil naît le Parti des Fourmis Libres et le rêve d’une république qui commencerait par l’enfant.",
     "Les Lignes d’ombre — Lettres à Marie (roman épistolaire psychologique) : Kpa Alfred écrit à Marie, même après sa disparition ; Marie ne répond qu’une seule fois.",
-    "Un instant d’amour : récit à la première personne de Kpa Emeric Alfred, personnage qui se sait raconté par un jeune auteur, sur l’amour, la liberté et l’amour de soi."
+    "Un instant d’amour (nouvelle romance, suite du Singularisme ou le Nouvel Homme) : récit à la première personne de Kpa Emeric Alfred, personnage qui se sait raconté par un jeune auteur, sur l’amour, la liberté et l’amour de soi.",
+    "Le Mythe incompris de Kundu (théâtre : prologue, trois actes, épilogue) : Kundu naît dans le silence et grandit le cri étouffé ; son histoire se joue, absurde et poignante, au théâtre d’une enfance perdue.",
+    "Je suis handicapée. Et alors ? (roman) : Harpie, 24 ans, étudiante en master d’histoire de l’art, a une sœur souffrant d’un handicap physique et mental ; le roman interroge ce que la différence révèle de nous-mêmes.",
+    "Je pense, donc je suis fou (réflexion absurde sur la vérité, le langage et la foi) : essai provocateur et poétique qui interroge les fondations fragiles de nos certitudes.",
+    "L’Amour est une superstition (réflexion absurde sur l’attachement, la fusion et la séparation) : méditation poétique et provocante sur les paradoxes de l’amour.",
+    "Créer, c’est résister (essai, manifeste et témoignage contre le plagiat) : ce que signifie inventer, imaginer, raconter dans un monde qui déforme et efface ; il propose une charte contre le plagiat."
 ];
 
 const CATALOGUE_PAIEMENT = Object.freeze({
@@ -402,7 +407,8 @@ function decouperPourTraduction(texte, longueurMax) {
 }
 
 // Titres de sections reconnus dans les manuscrits : chapitres, parties, préface, lettres…
-const MOTIF_TITRE_SECTION = /^(?:chapitre\s*\d+\b.*|partie\s+[ivxlc\d]+\b.*|pr[ée]face|postface|introduction|conclusion|prologue|avant-propos|[ée]pilogue\b.*|lettre\s+\d+\b.*)$/i;
+// (Les lignes qui se terminent par un point sont des phrases, pas des titres : « Acte I terminé. »)
+const MOTIF_TITRE_SECTION = /^(?:chapitre\s*\d+\b.*|partie\s+[ivxlc\d]+\b.*|acte\s+[ivxlc\d]+\s*[–—:-]\s*sc[èe]ne\s+\d+\b.*|sc[èe]ne\s+\d+\b.*|pr[ée]face|postface|introduction|avant-propos|(?:conclusion|prologue|[ée]pilogue)(?:\s*[–—:-].*)?|lettre\s+\d+\b.*)$/i;
 const MOTIF_SOUS_TITRE = /^\d{1,2}\.\s+[A-ZÀÂÉÈÊÎÔÛÇ][^.!?]{2,70}$/;
 
 // Découpe chaque page en passages en conservant le chapitre (ou la section) en cours,
@@ -422,7 +428,8 @@ function creerIndexDocument(texteParPage) {
         for (const ligne of String(text || "").split("\n")) {
             const titre = ligne.trim().replace(/\s+/g, " ");
             const estPartie = /^partie\s+[ivxlc\d]+\b/i.test(titre) && titre.length <= 90;
-            const estSection = !estPartie && titre.length <= 90 && (MOTIF_TITRE_SECTION.test(titre) || (partie && MOTIF_SOUS_TITRE.test(titre)));
+            const estSection = !estPartie && titre.length <= 90 && !/\.$/.test(titre)
+                && (MOTIF_TITRE_SECTION.test(titre) || (partie && MOTIF_SOUS_TITRE.test(titre)));
             if (estPartie || estSection) {
                 vider();
                 if (estPartie) {

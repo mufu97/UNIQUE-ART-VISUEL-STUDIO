@@ -45,7 +45,7 @@ Méthode : lecture du code route par route, `npm audit`, tests automatisés (25 
 ## 4. Limites restantes (à connaître)
 
 1. **Limites anti-abus en mémoire** : sur Vercel, chaque instance du serveur compte de son côté ; un attaquant très actif peut obtenir quelques essais de plus. Pour aller plus loin : pare-feu Vercel (règle de limitation sur `/api/login`) ou compteur partagé (Redis).
-2. **Session studio non révocable individuellement** : elle expire d'elle-même ; pour couper toutes les sessions, changer `ADMIN_KEY` dans Vercel.
+2. **Session studio non révocable individuellement** : elle expire d'elle-même ; pour couper toutes les sessions, changer `ADMIN_API_KEY` dans Vercel.
 3. **Création de compte** : un e-mail déjà inscrit renvoie un message distinct (révèle qu'un compte existe). Limité à 5 essais/h par adresse ; acceptable pour un studio, à revoir si besoin.
 4. **`DATABASE_URL` absente en production** : le site fonctionne, mais **les comptes, devis et commandes ne sont pas conservés durablement** tant que la base Supabase n'est pas reliée dans Vercel. C'est le point le plus important à régler.
 5. **Services non configurés** : fournisseur d'IA, CinetPay, Resend. Les fonctions correspondantes l'indiquent honnêtement au visiteur (aucune simulation).

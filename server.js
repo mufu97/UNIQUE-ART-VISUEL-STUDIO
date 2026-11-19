@@ -120,7 +120,7 @@ const QUESTION_CONTENU_OEUVRE = /\b(?:oeuvres?|livres?|romans?|manuscrits?|intri
 // Présentations publiées par l'éditeur (quatrièmes de couverture et fiches du site), fournies à l'assistant
 // comme contexte. Elles ne remplacent pas les manuscrits indexés.
 const CATALOGUE_OEUVRES = [
-    "Le Singularisme (conte philosophique moderne, suite de nouvelles philosophiques et poétiques ; première édition : Le Singularisme ou le Nouvel Homme, Éditions Muse, 28 septembre 2023) : à Pupus, village oublié, un jeune instituteur, Kpa, découvre que l’école ne suffit pas à comprendre la vie ; les jumeaux Eatte et Cako parlent par énigmes ; Kundu meurt ; onze chapitres sur la pensée, la mémoire, la foi, le langage, le désir et le sens.",
+    "Le Singularisme (conte philosophique moderne, suite de nouvelles philosophiques et poétiques ; version condensée de Le Singularisme ou le Nouvel Homme, Éditions Muse, 28 septembre 2023) : à Pupus, village oublié, un jeune instituteur, Kpa, découvre que l’école ne suffit pas à comprendre la vie ; les jumeaux Eatte et Cako parlent par énigmes ; Kundu meurt ; onze chapitres sur la pensée, la mémoire, la foi, le langage, le désir et le sens.",
     "Le Pouvoir des Mots : récit graphique, série sur la force du verbe, de la parole et de l’imagination.",
     "Les Délires de Pupus (roman psychologique inspiré du Singularisme) : à Pupus, village oublié, des enfants disparaissent sans papiers ni noms ; Mériam Kéita, ex-avocate devenue enquêtrice pour le gouvernement, y est envoyée et découvre un monde où un certain Kundu, enfant sans reçu, semble hanter chaque silence.",
     "Les Enfants de l’Éclipse : essai poétique en vingt-quatre courts chapitres sur l’enfance et les ombres, mêlant récit, philosophie et fragments oniriques.",

@@ -20,7 +20,9 @@ before(async () => {
         DATA_DIR: dataDir,
         NODE_ENV: "test",
         ADMIN_API_KEY: ADMIN_KEY,
-        CLIENT_SESSION_SECRET: "secret-session-de-test-suffisamment-long"
+        CLIENT_SESSION_SECRET: "secret-session-de-test-suffisamment-long",
+        // Les tests créent de nombreux comptes depuis la même adresse.
+        LIMITE_MULTIPLICATEUR: "50"
     };
     // Valeurs vides (et non absentes) pour que le fichier .env local ne les remplisse pas.
     for (const cle of ["DATABASE_URL", "RESEND_API_KEY", "EMAIL_FROM", "EMAIL_TO", "RESEND_WEBHOOK_SECRET",
@@ -291,7 +293,8 @@ test("vérification de l'adresse : jeton à usage unique, puis accès aux demand
 test("traduction : la langue demandée par le site est bien prise en compte", async () => {
     // Le site envoie « targetLanguage » : une langue non prise en charge doit être refusée
     // (auparavant ce champ était ignoré et la traduction partait toujours vers l'anglais).
-    const reponse = await api("/api/translate", { method: "POST", body: { text: "Bonjour", targetLanguage: "xx" } });
+    const { cookie } = await api("/api/admin/session", { method: "POST", body: { password: ADMIN_KEY } });
+    const reponse = await api("/api/translate", { method: "POST", cookie, body: { text: "Bonjour", targetLanguage: "xx" } });
     assert.equal(reponse.status, 400);
 });
 
@@ -344,4 +347,56 @@ test("bibliothèque IA : chapitres détectés, recherche réservée à l'adminis
     const recherche = await api("/api/admin/knowledge/search", { method: "POST", cookie, body: { question: "Qui est Kundu, l’enfant sans reçu ?" } });
     assert.equal(recherche.status, 200);
     assert.match(recherche.json[0].reference, /^Œuvre de test, Chapitre 2 — L’ombre de Kundu/);
+});
+
+// --- Sécurité : limites, origine, médias, traduction ---
+
+test("sécurité : un en-tête X-Forwarded-For falsifié ne contourne pas la limite de connexion", async () => {
+    const email = `cible.${Date.now()}@exemple.ci`;
+    let refus = 0;
+    for (let i = 0; i < 12; i += 1) {
+        const r = await fetch(`${BASE}/api/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Forwarded-For": `10.9.${i}.${i}` },
+            body: JSON.stringify({ email, motDePasse: `essai-${i}` })
+        });
+        if (r.status === 429) refus += 1;
+    }
+    assert.ok(refus >= 4, `les essais au-delà de 8 doivent être refusés (refus : ${refus})`);
+});
+
+test("sécurité : écritures depuis une autre origine refusées, pré-vérification sans autorisation croisée", async () => {
+    const r = await fetch(`${BASE}/api/discussions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://site-malveillant.example" },
+        body: JSON.stringify({ name: "X", email: "x@exemple.ci", type: "Autre", message: "test" })
+    });
+    assert.equal(r.status, 403);
+    const pre = await fetch(`${BASE}/api/clients`, { method: "OPTIONS", headers: { Origin: "https://site-malveillant.example" } });
+    assert.equal(pre.headers.get("access-control-allow-origin"), null);
+    const memeOrigine = await fetch(`${BASE}/api/discussions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: BASE },
+        body: JSON.stringify({ name: "Y", email: "y@exemple.ci", type: "Autre", message: "même origine" })
+    });
+    assert.equal(memeOrigine.status, 201);
+});
+
+test("sécurité : traduction réservée à l'administration, médias de création validés", async () => {
+    assert.equal((await api("/api/translate", { method: "POST", body: { text: "Bonjour", targetLanguage: "en" } })).status, 401);
+    const { cookie } = await api("/api/admin/session", { method: "POST", body: { password: ADMIN_KEY } });
+    const piege = await api("/api/creations", { method: "POST", cookie, body: { title: "Piège", image: "javascript:alert(1)" } });
+    assert.equal(piege.status, 400);
+    const externe = await api("/api/creations", { method: "POST", cookie, body: { title: "Externe", pdf: "https://exemple.com/x.pdf" } });
+    assert.equal(externe.status, 400);
+    const valide = await api("/api/creations", { method: "POST", cookie, body: { title: "Valide", image: "data:image/png;base64,iVBORw0KGgo=" } });
+    assert.equal(valide.status, 201);
+});
+
+test("sécurité : le champ piège ignore les envois automatisés", async () => {
+    const r = await api("/api/discussions", { method: "POST", body: { name: "Robot", email: "r@exemple.ci", type: "Autre", message: "spam", website: "http://spam.example" } });
+    assert.equal(r.status, 201);
+    const { cookie } = await api("/api/admin/session", { method: "POST", body: { password: ADMIN_KEY } });
+    const liste = await api("/api/discussions", { cookie });
+    assert.ok(!liste.json.some((d) => d.message === "spam"), "la demande piégée ne doit pas être enregistrée");
 });

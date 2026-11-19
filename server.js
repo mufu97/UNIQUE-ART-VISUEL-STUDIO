@@ -34,7 +34,8 @@ const SUR_VERCEL = Boolean(process.env.VERCEL);
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
-const MAX_BODY_SIZE = 80 * 1024 * 1024;
+const MAX_BODY_SIZE = 1024 * 1024; // 1 Mo par défaut ; les imports de l'administration fixent leur propre limite
+const MAX_CREATION_BODY_SIZE = 12 * 1024 * 1024;
 const MAX_CLIENT_DEVICE_COUNT = 100;
 const MAX_CLIENT_DEVICE_BODY_SIZE = 1024 * 1024;
 const MAX_CLIENT_LOCATION_BODY_SIZE = 4096;
@@ -236,14 +237,56 @@ function sendJson(response, status, payload, extraHeaders = {}) {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Cross-Origin-Resource-Policy": "same-origin",
         ...extraHeaders
     });
     response.end(JSON.stringify(payload));
 }
 
+// Adresse du visiteur pour les limites anti-abus. L'en-tête X-Forwarded-For est fourni par le client
+// et peut être falsifié : il n'est lu que derrière un mandataire de confiance qui le réécrit
+// (Vercel, ou TRUST_PROXY=1 pour un hébergeur équivalent). Sinon, l'adresse de la connexion fait foi.
 function getClientAddress(request) {
-    return request.headers["x-forwarded-for"]?.split(",")[0].trim() || request.socket.remoteAddress || "unknown";
+    if (SUR_VERCEL) {
+        return String(request.headers["x-real-ip"] || request.headers["x-forwarded-for"] || "").split(",")[0].trim()
+            || request.socket.remoteAddress || "unknown";
+    }
+    if (process.env.TRUST_PROXY === "1") {
+        return String(request.headers["x-forwarded-for"] || "").split(",")[0].trim() || request.socket.remoteAddress || "unknown";
+    }
+    return request.socket.remoteAddress || "unknown";
 }
+
+// Limiteur générique à fenêtre fixe, par catégorie et par clé (adresse, adresse + compte…).
+// En mémoire : chaque instance du serveur compte séparément (voir docs : limite des fonctions sans serveur).
+const compteursLimites = new Map();
+function limiteAtteinte(categorie, cle, maximum, fenetreMs) {
+    const maintenant = Date.now();
+    const identifiant = `${categorie}:${cle}`;
+    if (compteursLimites.size > 20000) {
+        for (const [id, entree] of compteursLimites) if (maintenant - entree.debut > entree.fenetre) compteursLimites.delete(id);
+    }
+    const entree = compteursLimites.get(identifiant);
+    if (!entree || maintenant - entree.debut > fenetreMs) {
+        compteursLimites.set(identifiant, { debut: maintenant, nombre: 1, fenetre: fenetreMs });
+        return false;
+    }
+    entree.nombre += 1;
+    return entree.nombre > maximum;
+}
+function effacerLimite(categorie, cle) {
+    compteursLimites.delete(`${categorie}:${cle}`);
+}
+// Les tests automatisés créent beaucoup de comptes depuis la même adresse : ils assouplissent
+// uniquement les limites d'écriture publique (jamais celles des connexions).
+const MULTIPLICATEUR_LIMITES = Math.max(1, Number(process.env.LIMITE_MULTIPLICATEUR) || 1);
+const LIMITES_ECRITURE = {
+    "/api/clients": [5, 60 * 60 * 1000],
+    "/api/discussions": [10, 15 * 60 * 1000],
+    "/api/contact": [5, 15 * 60 * 1000],
+    "/api/orders": [10, 15 * 60 * 1000]
+};
 
 function isRateLimited(request) {
     const now = Date.now();
@@ -264,7 +307,7 @@ function isRateLimited(request) {
     }
 
     current.count += 1;
-    return current.count > RATE_LIMIT;
+    return current.count > RATE_LIMIT * MULTIPLICATEUR_LIMITES;
 }
 
 function limiterAssistantAtteint(request) {
@@ -1765,12 +1808,21 @@ async function handleApi(request, response, url) {
                 sendJson(response, 503, { error: "Configurez ADMIN_API_KEY dans le fichier .env pour activer l’administration." });
                 return;
             }
-            const attendu = Buffer.from(cle);
-            const recu = Buffer.from(fourni);
-            if (!fourni || attendu.length !== recu.length || !crypto.timingSafeEqual(attendu, recu)) {
+            const adresse = getClientAddress(request);
+            if (limiteAtteinte("admin-echecs", adresse, 10, 15 * 60 * 1000)) {
+                sendJson(response, 429, { error: "Trop de tentatives. Réessayez dans 15 minutes." }, { "Retry-After": "900" });
+                return;
+            }
+            // Empreintes de longueur fixe : la comparaison ne révèle pas la longueur de la clé.
+            const attendu = crypto.createHash("sha256").update(cle).digest();
+            const recu = crypto.createHash("sha256").update(fourni).digest();
+            if (!fourni || !crypto.timingSafeEqual(attendu, recu)) {
+                console.warn(`Échec de connexion administrateur depuis ${adresse}.`);
                 sendJson(response, 401, { error: "Mot de passe administrateur incorrect." });
                 return;
             }
+            effacerLimite("admin-echecs", adresse);
+            console.info(`Connexion administrateur réussie depuis ${adresse}.`);
             const sessionId = creerSessionAdmin();
             response.writeHead(200, {
                 "Content-Type": "application/json; charset=utf-8",
@@ -2269,7 +2321,13 @@ async function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/translate") {
-        readBody(request).then(async (body) => {
+        // Seul l'espace studio traduit les demandes : la route n'est pas ouverte au public
+        // (elle relaie le texte vers un service tiers).
+        if (!isAdminRequest(request)) {
+            sendJson(response, 401, { error: "Action réservée à l'administrateur." });
+            return true;
+        }
+        readBody(request, 16000).then(async (body) => {
             const texte = String(body.text || "").trim();
             // Le site envoie « targetLanguage » ; « language » reste accepté pour compatibilité.
             const langue = String(body.targetLanguage || body.language || "en").trim().toLowerCase();
@@ -2348,12 +2406,23 @@ async function handleApi(request, response, url) {
             sendJson(response, 401, { error: "Action réservée à l'administrateur." });
             return true;
         }
-        readBody(request).then(async (body) => {
+        readBody(request, MAX_CREATION_BODY_SIZE).then(async (body) => {
             const title = typeof body.title === "string" ? body.title.trim().slice(0, 150) : "";
-            const image = typeof body.image === "string" ? body.image : "";
-            const pdf = typeof body.pdf === "string" ? body.pdf : "";
-            const video = typeof body.video === "string" ? body.video : "";
-            if (!title || ![image, pdf, video].some((media) => media.trim())) {
+            // Seuls des fichiers importés (données base64) de type attendu sont acceptés :
+            // aucune adresse externe ni « javascript: » ne peut être enregistrée comme média.
+            const media = (valeur, motif) => {
+                const texte = typeof valeur === "string" ? valeur.trim() : "";
+                if (!texte) return "";
+                return motif.test(texte) ? texte : null;
+            };
+            const image = media(body.image, /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/);
+            const pdf = media(body.pdf, /^data:application\/pdf;base64,[A-Za-z0-9+/]+={0,2}$/);
+            const video = media(body.video, /^data:video\/(?:mp4|webm);base64,[A-Za-z0-9+/]+={0,2}$/);
+            if ([image, pdf, video].includes(null)) {
+                sendJson(response, 400, { error: "Format de fichier non accepté : image JPEG, PNG, WebP ou GIF, PDF, vidéo MP4 ou WebM." });
+                return;
+            }
+            if (!title || ![image, pdf, video].some(Boolean)) {
                 sendJson(response, 400, { error: "Un titre et un fichier sont requis." });
                 return;
             }
@@ -2383,6 +2452,11 @@ async function handleApi(request, response, url) {
     if (request.method === "POST" && url.pathname === "/api/discussions") {
         const auteurConnecte = await obtenirClientConnecte(request);
         readBody(request).then((body) => avecVerrouStore(async () => {
+            // Champ piège invisible : seul un robot le remplit. On répond comme si tout allait bien.
+            if (body.website) {
+                sendJson(response, 201, { ok: true });
+                return;
+            }
             if (!String(body.name || "").trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email || "").trim())
                 || !String(body.type || "").trim() || !String(body.message || "").trim()) {
                 sendJson(response, 400, { error: "Nom, e-mail valide, type et message requis." });
@@ -2545,7 +2619,7 @@ async function handleApi(request, response, url) {
         return true;
     }
 
-    if (request.method === "POST" && ["/api/login", "/login"].includes(url.pathname)) {
+    if (request.method === "POST" && url.pathname === "/api/login") {
         readBody(request).then(async (body) => {
             const email = String(body.email || "").trim().toLowerCase();
             const motDePasse = String(body.motDePasse || "");
@@ -2555,13 +2629,22 @@ async function handleApi(request, response, url) {
                 return;
             }
 
+            const adresse = getClientAddress(request);
+            if (limiteAtteinte("connexion-ip", adresse, 30, 15 * 60 * 1000)
+                || limiteAtteinte("connexion-compte", email, 8, 15 * 60 * 1000)) {
+                sendJson(response, 429, { error: "Trop de tentatives de connexion. Réessayez dans 15 minutes ou réinitialisez votre mot de passe." }, { "Retry-After": "900" });
+                return;
+            }
             const store = await readStore();
             const client = store.clients.find((item) => item.email === email);
-            const verification = client ? verifierMotDePasse(motDePasse, client.motDePasseHash) : null;
+            // Sans compte, un calcul équivalent est fait quand même : le temps de réponse ne révèle pas
+            // si l'adresse e-mail est inscrite.
+            const verification = client ? verifierMotDePasse(motDePasse, client.motDePasseHash) : (hashPassword(motDePasse), null);
             if (!verification?.valide) {
                 sendJson(response, 401, { error: "Adresse e-mail ou mot de passe incorrect." });
                 return;
             }
+            effacerLimite("connexion-compte", email);
             if (verification.ancienFormat) {
                 const nouveauHash = hashPassword(motDePasse);
                 await avecVerrouStore(async () => {
@@ -2694,7 +2777,10 @@ function envoyerFichier(request, response, filePath, status = 200) {
         : [".js", ".css", ".woff2"].includes(extension)
             ? "public, max-age=31536000, immutable"
             : "public, max-age=604800, stale-while-revalidate=86400";
-    if (extension === ".html") headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY;
+    if (extension === ".html") {
+        headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY;
+        headers["Cross-Origin-Opener-Policy"] = "same-origin";
+    }
     const compressible = [".html", ".js", ".css", ".svg", ".xml", ".txt"].includes(extension);
     const acceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(String(request.headers["accept-encoding"] || ""));
     if (compressible) headers.Vary = "Accept-Encoding";
@@ -2758,14 +2844,33 @@ function serveFile(request, response, url) {
 function traiterRequete(request, response) {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
+    // L'API n'est utilisée que par le site lui-même : aucune autorisation d'appel depuis d'autres origines.
     if (request.method === "OPTIONS") {
-        response.writeHead(204, {
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Allow-Origin": "*"
-        });
+        response.writeHead(204, { "Cache-Control": "no-store" });
         response.end();
         return;
+    }
+
+    // Protection contre les requêtes forgées depuis un autre site : une écriture envoyée par un
+    // navigateur doit venir de la même origine. Les webhooks (appels serveur à serveur) n'ont pas d'Origin.
+    if (url.pathname.startsWith("/api/") && !["GET", "HEAD"].includes(request.method)) {
+        const origine = request.headers.origin;
+        if (origine && origine !== "null") {
+            let hoteOrigine = "";
+            try { hoteOrigine = new URL(origine).host; } catch { hoteOrigine = ""; }
+            if (hoteOrigine !== request.headers.host) {
+                sendJson(response, 403, { error: "Requête refusée : origine non autorisée." });
+                return;
+            }
+        } else if (origine === "null") {
+            sendJson(response, 403, { error: "Requête refusée : origine non autorisée." });
+            return;
+        }
+        const limite = request.method === "POST" ? LIMITES_ECRITURE[url.pathname] : null;
+        if (limite && limiteAtteinte(`ecriture${url.pathname}`, getClientAddress(request), limite[0] * MULTIPLICATEUR_LIMITES, limite[1])) {
+            sendJson(response, 429, { error: "Trop d’envois depuis cette connexion. Réessayez un peu plus tard." }, { "Retry-After": "900" });
+            return;
+        }
     }
 
     if (url.pathname.startsWith("/api/") && isRateLimited(request)) {

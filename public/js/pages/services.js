@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             await Studio.api("/discussions", {
                 method: "POST",
-                body: { name: d.nom, email: d.email, type: `Demande de devis — ${d.prestation}`, message, language: "fr" }
+                body: { name: d.nom, email: d.email, type: `Demande de devis — ${d.prestation}`, message, language: "fr", website: d.website }
             });
             formulaire.reset();
             Studio.statut(statut, "Votre demande a bien été transmise au studio. Vous recevrez une réponse par e-mail.", "succes");

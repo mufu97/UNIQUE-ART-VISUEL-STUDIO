@@ -324,3 +324,24 @@ test("site : anciennes adresses redirigées, page 404, plan du site", async () =
     assert.equal((await fetch(`${BASE}/.env`)).status, 404);
     assert.equal((await fetch(`${BASE}/site/contact.json`)).status, 404);
 });
+
+test("bibliothèque IA : chapitres détectés, recherche réservée à l'administration", async () => {
+    const connexion = await api("/api/admin/session", { method: "POST", body: { password: ADMIN_KEY } });
+    const cookie = connexion.cookie;
+    const texte = [
+        "Préface", "Ce livre raconte une enquête dans un village oublié où les enfants disparaissent sans papiers.",
+        "Chapitre 1 — Le reçu manquant", "Mériam arrive au village. Personne ne possède de reçu de naissance pour les enfants disparus, et le registre reste vide.",
+        "Chapitre 2 — L’ombre de Kundu", "Kundu est un enfant sans reçu. Les habitants disent qu’il hante chaque silence du village et dessine sur les murs."
+    ].join("\n");
+    const contenu = `data:text/plain;base64,${Buffer.from(texte).toString("base64")}`;
+    const ajout = await api("/api/admin/knowledge", { method: "POST", cookie, body: { title: "Œuvre de test", fileName: "test.txt", content: contenu } });
+    assert.equal(ajout.status, 201);
+    const liste = await api("/api/admin/knowledge", { cookie });
+    const oeuvre = liste.json.find((document) => document.title === "Œuvre de test");
+    assert.equal(oeuvre.chapterCount, 3);
+
+    assert.equal((await api("/api/admin/knowledge/search", { method: "POST", body: { question: "Kundu" } })).status, 401);
+    const recherche = await api("/api/admin/knowledge/search", { method: "POST", cookie, body: { question: "Qui est Kundu, l’enfant sans reçu ?" } });
+    assert.equal(recherche.status, 200);
+    assert.match(recherche.json[0].reference, /^Œuvre de test, Chapitre 2 — L’ombre de Kundu/);
+});

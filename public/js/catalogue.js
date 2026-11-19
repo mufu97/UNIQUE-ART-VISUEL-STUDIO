@@ -19,27 +19,15 @@ const Catalogue = {
         { id: "etude-crayon", title: "Étude de portrait · crayon", category: "Dessin", description: "Portrait en noir et blanc, réalisé au crayon.", image: "/assets/optimized/oeuvres/web/portrait-etude-crayon-1280.webp", miniature: "/assets/optimized/oeuvres/web/portrait-etude-crayon-640.webp" }
     ],
 
+    // Œuvres écrites du studio (ordre d'affichage). « couverture » : image réelle de l'ouvrage, sinon couverture typographique.
     oeuvres: [
-        {
-            id: "le-singularisme",
-            titre: "Le Singularisme",
-            genre: "Œuvre philosophique",
-            auteur: "Ando Dieudonné-Jean N'dé",
-            resume: "Une œuvre sur la pensée, l’individu, l’authenticité et la société.",
-            themes: ["La pensée", "L’individu", "L’authenticité", "La société"],
-            couverture: "singularisme",
-            question: "Peux-tu m’expliquer la pensée du Singularisme ?"
-        },
-        {
-            id: "le-pouvoir-des-mots",
-            titre: "Le Pouvoir des Mots",
-            genre: "Récit graphique",
-            auteur: "Ando Dieudonné-Jean N'dé",
-            resume: "Une série sur la force du verbe, de la parole et de l’imagination.",
-            themes: ["Le verbe", "La parole", "L’imagination"],
-            couverture: "mots",
-            question: "Quels thèmes explore Le Pouvoir des Mots ?"
-        }
+        { id: "les-delires-de-pupus", titre: "Les Délires de Pupus", genre: "Roman psychologique", resume: "À Pupus, des enfants disparaissent sans papiers ni noms. Une enquête entre polar, fable politique et vertige existentiel.", image: "/assets/oeuvres/les-delires-de-pupus-480.webp" },
+        { id: "les-lignes-d-ombre", titre: "Les Lignes d’ombre — Lettres à Marie", genre: "Roman épistolaire", resume: "Kpa Alfred écrit à Marie, même après sa disparition. Marie ne répond qu’une seule fois.", image: "/assets/oeuvres/les-lignes-d-ombre-480.webp" },
+        { id: "les-enfants-de-la-nouvelle-republique", titre: "Les Enfants de la Nouvelle République", genre: "Fable philosophico-politique", resume: "Ei, père et fourmi, perd son enfant faute d’un reçu. De son deuil naît un mouvement.", image: "/assets/oeuvres/les-enfants-de-la-nouvelle-republique-480.webp" },
+        { id: "les-enfants-de-l-eclipse", titre: "Les Enfants de l’Éclipse", genre: "Essai poétique", resume: "Vingt-quatre petits chapitres comme autant de lampes dans l’obscurité de l’enfance.", image: "/assets/oeuvres/les-enfants-de-l-eclipse-480.webp" },
+        { id: "un-instant-d-amour", titre: "Un instant d’amour", genre: "Récit", resume: "Kpa Emeric Alfred raconte ses « instants d’amour », entre liberté et amour de soi.", image: "/assets/oeuvres/un-instant-d-amour-480.webp" },
+        { id: "le-singularisme", titre: "Le Singularisme", genre: "Œuvre philosophique", auteur: "Ando Dieudonné-Jean N'dé", resume: "Une œuvre sur la pensée, l’individu, l’authenticité et la société.", couverture: "singularisme" },
+        { id: "le-pouvoir-des-mots", titre: "Le Pouvoir des Mots", genre: "Récit graphique", auteur: "Ando Dieudonné-Jean N'dé", resume: "Une série sur la force du verbe, de la parole et de l’imagination.", couverture: "mots" }
     ]
 };
 
@@ -61,11 +49,19 @@ Catalogue.normaliserCreation = function normaliserCreation(creation, index = 0) 
     };
 };
 
-// Construit la couverture typographique d'une œuvre écrite (pas d'image inventée).
+// Couverture d'une œuvre : l'image réelle si elle existe, sinon une couverture typographique (pas d'image inventée).
 Catalogue.couverture = function couverture(oeuvre) {
     const { el } = Studio;
+    if (oeuvre.image) return el("img", { src: oeuvre.image, alt: `Couverture : ${oeuvre.titre}`, width: "480", height: "680", loading: "lazy", decoding: "async" });
     return el("div", { class: `couverture${oeuvre.couverture === "mots" ? " couverture-mots" : ""}`, role: "img", "aria-label": `Couverture : ${oeuvre.titre}` },
         el("small", { text: oeuvre.genre.toUpperCase() }),
         el("strong", { text: oeuvre.titre }),
-        el("span", { text: oeuvre.auteur }));
+        el("span", { text: oeuvre.auteur || "Ando Dieudonné-Jean N'dé" }));
+};
+
+// Vignette d'une œuvre (couverture, genre, titre) menant à sa fiche.
+Catalogue.vignette = function vignette(oeuvre) {
+    const { el } = Studio;
+    return el("a", { class: "livre-mini", href: `/oeuvres#${oeuvre.id}` },
+        Catalogue.couverture(oeuvre), el("strong", { text: oeuvre.titre }), el("span", { text: oeuvre.genre }));
 };

@@ -103,6 +103,14 @@
                 </form>
                 <h3>Œuvres indexées</h3>
                 <ul class="liste-elements" id="listeBibliotheque"></ul>
+                <h3>Tester la recherche</h3>
+                <p class="mention-donnees">Vérifiez quels passages l’assistant utiliserait pour répondre à une question de lecteur (aucun appel au fournisseur d’IA).</p>
+                <form id="formulaireTestRecherche" class="formulaire" novalidate>
+                    <div class="champ"><label for="questionTest">Question</label><input id="questionTest" name="question" required maxlength="2000" placeholder="Ex. Pourquoi Kundu n’a-t-il pas de reçu ?"></div>
+                    <button class="btn btn-discret" type="submit">Rechercher les passages</button>
+                    <p class="statut" role="status" aria-live="polite"></p>
+                </form>
+                <ul class="liste-elements" id="resultatsTestRecherche"></ul>
             </div>
 
             <div class="panneau" id="services-externes">

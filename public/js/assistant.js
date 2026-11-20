@@ -12,10 +12,10 @@ const StudioAssistant = (() => {
     const MAX_MESSAGES = 40;
     const ACCUEIL = "Bonjour. Je suis l’assistant de lecture du studio. Posez-moi une question sur une œuvre, un passage ou un concept : je réponds à partir des textes que le studio a mis à ma disposition et je cite mes sources.";
     const SUGGESTIONS = [
-        ["Le Singularisme", "Peux-tu m’expliquer la pensée du Singularisme ?"],
-        ["Le Pouvoir des Mots", "Quels thèmes explore Le Pouvoir des Mots ?"],
-        ["Expliquer un passage", "Je ne comprends pas ce passage, peux-tu me l’expliquer ? "],
-        ["Services du studio", "Quels services propose le studio et à quels tarifs ?"]
+        ["Les Délires de Pupus", "Qui est Kundu dans Les Délires de Pupus ?"],
+        ["Lettres à Marie", "Que cherche Kpa en écrivant à Marie dans Les Lignes d’ombre ?"],
+        ["La Nouvelle République", "Que représente la fourmi Ei dans Les Enfants de la Nouvelle République ?"],
+        ["Expliquer un passage", "Je ne comprends pas ce passage, peux-tu me l’expliquer ? "]
     ];
     const { el } = Studio;
 
@@ -54,7 +54,7 @@ const StudioAssistant = (() => {
     function ajouterBulle(role, texte, sources = []) {
         const bulle = el("div", { class: `bulle ${role === "user" ? "bulle-lecteur" : "bulle-assistant"}`, text: texte });
         if (sources.length) {
-            const references = sources.map((source) => `${source.title}${source.page ? `, page ${source.page}` : ""}`);
+            const references = sources.map((source) => [source.title, source.chapter, source.page ? `page ${source.page}` : ""].filter(Boolean).join(", "));
             bulle.append(el("div", { class: "sources", text: `Sources : ${[...new Set(references)].join(" ; ")}` }));
         }
         fil.append(bulle);

@@ -1,34 +1,232 @@
-<!--{"titre":"Œuvres et publications","description":"La bibliothèque éditoriale du studio : œuvres philosophiques, récits graphiques et séries littéraires d’Ando Dieudonné-Jean N’dé, avec un assistant de lecture pour les comprendre.","chemin":"/oeuvres","nav":"oeuvres","priorite":"0.9"}-->
+<!--{"titre":"Œuvres et publications","description":"La bibliothèque éditoriale du studio : romans, nouvelle, théâtre, fable et essais d’Ando Dieudonné-Jean N’dé, dont Les Délires de Pupus, Le Mythe incompris de Kundu, Je pense, donc je suis fou et Le Singularisme ou le Nouvel Homme.","chemin":"/oeuvres","nav":"oeuvres","scripts":["/js/catalogue.js","oeuvres"],"priorite":"0.9"}-->
 <section class="heros-page">
     <div class="conteneur">
         <nav class="fil-ariane" aria-label="Fil d’Ariane"><a href="/">Accueil</a> / Œuvres</nav>
         <p class="surtitre">Bibliothèque éditoriale</p>
         <h1>Œuvres et publications</h1>
-        <p class="chapeau">Les écrits du studio : essais philosophiques, récits graphiques et séries littéraires. Chaque fiche présente l’œuvre et permet de l’explorer avec l’assistant de lecture.</p>
+        <p class="chapeau">Les écrits d’Ando Dieudonné-Jean N’dé publiés par le studio. Chaque fiche présente l’œuvre et permet de l’explorer avec l’assistant de lecture, qui cite les chapitres et les pages.</p>
     </div>
 </section>
 
-<section class="section" aria-label="Œuvres publiées">
-    <div class="conteneur grille">
-        <article class="livre apparition" id="le-singularisme">
-            <div class="couverture" role="img" aria-label="Couverture typographique : Le Singularisme">
-                <small>ŒUVRE PHILOSOPHIQUE</small>
-                <strong>Le Singularisme</strong>
-                <span>Ando Dieudonné-Jean N’dé</span>
-            </div>
+<section class="section" aria-labelledby="titreCatalogue">
+    <div class="conteneur">
+        <div class="entete-section apparition">
             <div>
-                <div class="livre-meta"><span class="pastille">Essai philosophique</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
-                <h2>Le Singularisme</h2>
-                <p class="chapeau">Une œuvre sur la pensée, l’individu, l’authenticité et la société.</p>
+                <p class="surtitre">Catalogue</p>
+                <h2 id="titreCatalogue">Douze œuvres, un même regard</h2>
+                <p class="chapeau">Romans, nouvelle, théâtre, fable, essais et œuvres philosophiques. Les présentations reprennent les quatrièmes de couverture des ouvrages lorsqu’elles existent.</p>
+            </div>
+        </div>
+        <nav id="sommaireOeuvres" class="livres-mini sommaire-oeuvres" aria-label="Sommaire des œuvres"></nav>
+        <div class="grille">
+        <article class="livre apparition" id="les-delires-de-pupus">
+            <img class="couverture-image" src="/assets/oeuvres/les-delires-de-pupus-480.webp" srcset="/assets/oeuvres/les-delires-de-pupus-480.webp 480w, /assets/oeuvres/les-delires-de-pupus-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Les Délires de Pupus : une enquêtrice pensive devant une silhouette à chapeau et lunettes">
+            <div>
+                <div class="livre-meta"><span class="pastille">Roman psychologique</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Les Délires de Pupus</h2>
+                <blockquote class="presentation"><p>Et s’il fallait un reçu pour exister ? Et si l’enquête ne cherchait pas un coupable, mais une preuve de naissance ? Et si le silence était plus lourd que le crime ?</p><p>Dans un village oublié, Pupus, des enfants disparaissent sans laisser de trace. Pas de papiers. Pas de noms. Pas même de souvenirs officiels. Pour l’administration, ils n’ont jamais existé. Mais dans les murs, les dessins, les rêves… leur présence persiste.</p><p>Mériam Kéita, ex-avocate devenue enquêtrice pour le gouvernement, est envoyée sur place. Elle croyait venir résoudre une affaire. Elle découvrira un monde où les preuves mentent, les rumeurs enseignent, et où un certain Kundu, enfant sans reçu, semble hanter chaque silence.</p><p>Entre polar, fable politique et vertige existentiel, un polar à double voix, à double regard, pour celles et ceux qui savent que l’identité n’est pas un fichier… mais une lutte.</p><footer>Quatrième de couverture</footer></blockquote>
                 <dl class="fiche">
-                    <dt>Auteur</dt><dd>Ando Dieudonné-Jean N’dé</dd>
-                    <dt>Genre</dt><dd>Œuvre philosophique</dd>
-                    <dt>Thèmes</dt><dd>La pensée · l’individu · l’authenticité · la société</dd>
+                    <dt>Auteur</dt><dd>N’dé Ando Dieudonné-Jean (alias Deus Dedit)</dd>
+                    <dt>Genre</dt><dd>Roman psychologique inspiré du Singularisme</dd>
+                    <dt>Structure</dt><dd>Préface, dix chapitres, postface</dd>
+                    <dt>Personnages</dt><dd>Mériam Kéita, Kundu, Ei</dd>
                     <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
                 </dl>
                 <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Pourquoi Kundu n’a-t-il pas de reçu dans Les Délires de Pupus ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+        <article class="livre apparition" id="les-lignes-d-ombre">
+            <img class="couverture-image" src="/assets/oeuvres/les-lignes-d-ombre-480.webp" srcset="/assets/oeuvres/les-lignes-d-ombre-480.webp 480w, /assets/oeuvres/les-lignes-d-ombre-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Les Lignes d’ombre : un homme écrit une lettre à la lueur d’une bougie">
+            <div>
+                <div class="livre-meta"><span class="pastille">Roman épistolaire psychologique</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Les Lignes d’ombre — Lettres à Marie</h2>
+                <blockquote class="presentation"><p>Et si écrire à quelqu’un, c’était écrire à ce qu’on n’a jamais su lui dire ? Et si l’amour était un monologue prolongé dans le silence d’une disparition ?</p><p>Kpa Alfred écrit. À Marie. Depuis des mois. Peut-être des années. Il lui écrit même après sa disparition, même après l’effondrement, même après l’hôpital. Dans ces lettres — tantôt brûlantes, tantôt floues, tantôt hallucinées — il tente de réparer ce qu’il n’a pas su comprendre. Marie, elle, répond une seule fois. Mais cette réponse suffit à tout inverser.</p><p>Un texte brut, sensible, parfois cruel, pour celles et ceux qui savent que l’amour ne guérit pas toujours… mais qu’il laisse des lettres à lire, longtemps après.</p><footer>Quatrième de couverture</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>N’dé Ando Dieudonné-Jean (alias Deus Dedit)</dd>
+                    <dt>Genre</dt><dd>Roman épistolaire psychologique</dd>
+                    <dt>Structure</dt><dd>Préface, dix chapitres (lettres, journal, dialogue), postface</dd>
+                    <dt>Personnages</dt><dd>Kpa Alfred, Marie-Esther, Cyrille Po</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Que signifie la chambre vide dans la première lettre de Kpa à Marie ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+        <article class="livre apparition" id="les-enfants-de-la-nouvelle-republique">
+            <img class="couverture-image" src="/assets/oeuvres/les-enfants-de-la-nouvelle-republique-480.webp" srcset="/assets/oeuvres/les-enfants-de-la-nouvelle-republique-480.webp 480w, /assets/oeuvres/les-enfants-de-la-nouvelle-republique-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Les Enfants de la Nouvelle République : une fourmi prononce un discours devant une foule">
+            <div>
+                <div class="livre-meta"><span class="pastille">Fable philosophico-politique</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Les Enfants de la Nouvelle République</h2>
+                <blockquote class="presentation"><p>« Mon fils est mort. Pas de guerre. Pas de maladie rare. Il est mort parce qu’il manquait une preuve. »</p><p>Un père perd son enfant. Non pas à cause d’une balle. Mais à cause d’un reçu. D’un cachet manquant. D’un protocole administratif plus fort que l’urgence vitale. Ce père s’appelle Ei. C’est une fourmi. Mais c’est aussi un homme. Son deuil devient refus. Sa douleur devient parole. Et de cette parole naît un mouvement : le Parti des Fourmis Libres, porteur d’un rêve radical : une république qui commencerait par l’enfant.</p><p>Entre fable animalière, théâtre politique et chronique poétique, cette œuvre nous parle de ce qu’on enterre avec les enfants : les espoirs, les promesses, les révolutions étouffées.</p><footer>Quatrième de couverture</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>N’dé Ando Dieudonné-Jean (alias Deus Dedit)</dd>
+                    <dt>Genre</dt><dd>Fable philosophico-politique</dd>
+                    <dt>Structure</dt><dd>Trois parties : « Le cercueil et le reçu », « Le réveil de la fourmilière », « Le silence des urnes », et un épilogue</dd>
+                    <dt>Personnages</dt><dd>Ei, le Parti des Fourmis Libres</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Que représente la fourmi Ei dans Les Enfants de la Nouvelle République ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+        <article class="livre apparition" id="les-enfants-de-l-eclipse">
+            <img class="couverture-image" src="/assets/oeuvres/les-enfants-de-l-eclipse-480.webp" srcset="/assets/oeuvres/les-enfants-de-l-eclipse-480.webp 480w, /assets/oeuvres/les-enfants-de-l-eclipse-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Les Enfants de l’Éclipse : quatre enfants marchent sous une éclipse">
+            <div>
+                <div class="livre-meta"><span class="pastille">Essai poétique</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Les Enfants de l’Éclipse</h2>
+                <blockquote class="presentation"><p>Les Enfants de l’Éclipse n’est pas un conte pour enfants, et pourtant il parle d’eux, de leur regard vaste, de leur façon de résister à la nuit du monde.</p><p>C’est un essai poétique, écrit comme une marche lente à travers l’enfance et les ombres. Vingt-quatre petits chapitres comme autant de lampes dans l’obscurité, pour approcher ce que l’enfance révèle de nos sociétés, de nos blessures, de notre imaginaire.</p><p>L’auteur y mêle récit, philosophie, fragments oniriques et regards lucides sur le monde contemporain. C’est une œuvre fragile et forte, comme la voix d’un enfant qui rêve encore.</p><footer>Présentation de l’œuvre</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>Ando Dieudonné-Jean N’dé</dd>
+                    <dt>Genre</dt><dd>Essai poétique</dd>
+                    <dt>Structure</dt><dd>Introduction et vingt-quatre chapitres</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Que se passe-t-il dans la bibliothèque des silences, dans Les Enfants de l’Éclipse ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+        <article class="livre apparition" id="un-instant-d-amour">
+            <img class="couverture-image" src="/assets/oeuvres/un-instant-d-amour-480.webp" srcset="/assets/oeuvres/un-instant-d-amour-480.webp 480w, /assets/oeuvres/un-instant-d-amour-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Un instant d’amour : un homme de dos dans un hall d’aéroport, un billet tombé au sol">
+            <div>
+                <div class="livre-meta"><span class="pastille">Nouvelle romance</span><span class="pastille pastille-neutre">Suite du Singularisme</span></div>
+                <h2>Un instant d’amour</h2>
+                <blockquote class="presentation"><p>« On m’appelle Kpa Emeric Alfred. » Personnage qui se sait raconté par un jeune auteur, dans la suite du <em>Singularisme ou le Nouvel Homme</em>, Kpa prend la parole pour livrer ses « instants d’amour » : une rencontre dans un hall d’aéroport, et une réflexion sur la liberté, le bonheur et l’amour de soi.</p><p>« Un instant d’amour et d’amour vrai de soi-même. Témoigne-toi assez d’amour au point de ne pas avoir à en attendre des autres. »</p><footer>Présentation du studio, à partir des premières pages de la nouvelle</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>N’dé Ando Dieudonné-Jean</dd>
+                    <dt>Genre</dt><dd>Nouvelle romance, à la première personne</dd>
+                    <dt>Suite de</dt><dd><a href="#le-singularisme">Le Singularisme ou le Nouvel Homme</a> (Éditions Muse, 2023)</dd>
+                    <dt>Personnage</dt><dd>Kpa Emeric Alfred</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Que dit Kpa sur la liberté et l’amour de soi dans Un instant d’amour ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+        <article class="livre apparition" id="je-suis-handicapee-et-alors">
+            <img class="couverture-image" src="/assets/oeuvres/je-suis-handicapee-et-alors-480.webp" srcset="/assets/oeuvres/je-suis-handicapee-et-alors-480.webp 480w, /assets/oeuvres/je-suis-handicapee-et-alors-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Je suis handicapée. Et alors ? : une jeune femme pousse le fauteuil roulant de sa sœur">
+            <div>
+                <div class="livre-meta"><span class="pastille">Roman</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Je suis handicapée. Et alors ?</h2>
+                <blockquote class="presentation"><p>C’est l’histoire de Harpie, qui a une sœur souffrant d’un handicap physique et mental. Harpie, 24 ans, est étudiante en master d’histoire de l’art ; son sujet de mémoire : l’histoire des peintres et des artistes atteints de déficience intellectuelle, et la manière dont les institutions artistiques ont progressivement regardé leurs œuvres.</p><p>« Dans cette histoire, la question n’est pas seulement de savoir ce que signifie être handicapée. Elle est aussi de savoir ce que nous faisons de cette différence et ce qu’elle révèle de nous-mêmes. »</p><footer>Présentation du studio, à partir de l’ouverture et des dernières lignes du roman</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>Ando Dieudonné-Jean N’dé</dd>
+                    <dt>Genre</dt><dd>Roman</dd>
+                    <dt>Personnages</dt><dd>Harpie, sa sœur Bénie</dd>
+                    <dt>Thèmes</dt><dd>Le handicap, le regard des autres, l’art brut et la légitimité de l’artiste</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="De quoi parle Je suis handicapée. Et alors ? et quel est le parcours de Harpie ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+
+        <article class="livre apparition" id="le-mythe-incompris-de-kundu">
+            <img class="couverture-image" src="/assets/oeuvres/le-mythe-incompris-de-kundu-480.webp" srcset="/assets/oeuvres/le-mythe-incompris-de-kundu-480.webp 480w, /assets/oeuvres/le-mythe-incompris-de-kundu-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Le Mythe incompris de Kundu : un enfant tient une feuille dans une salle vide">
+            <div>
+                <div class="livre-meta"><span class="pastille">Théâtre</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Le Mythe incompris de Kundu</h2>
+                <blockquote class="presentation"><p>Kundu naît dans le silence et grandit le cri étouffé, mais son destin dérape, et les mots s’envolent, au-delà de sa portée. Son histoire se joue, absurde et poignante, au théâtre d’une enfance perdue.</p><p>« Nom : Kundu. Âge : 12 ans. Cause du décès : Absence de reçu valide. Statut : Incompris. »</p><footer>Quatrième de couverture et prologue</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>N’dé Ando Dieudonné-Jean</dd>
+                    <dt>Genre</dt><dd>Théâtre</dd>
+                    <dt>Structure</dt><dd>Prologue « Le garçon et le reçu », trois actes de quatre scènes, épilogue « L’enfant sans nom »</dd>
+                    <dt>Personnage</dt><dd>Kundu</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Pourquoi Kundu est-il incompris dans Le Mythe incompris de Kundu ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+
+        <article class="livre apparition" id="je-pense-donc-je-suis-fou">
+            <img class="couverture-image" src="/assets/oeuvres/je-pense-donc-je-suis-fou-480.webp" srcset="/assets/oeuvres/je-pense-donc-je-suis-fou-480.webp 480w, /assets/oeuvres/je-pense-donc-je-suis-fou-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Je pense, donc je suis fou : une tête en silhouette d’où jaillissent des points d’interrogation">
+            <div>
+                <div class="livre-meta"><span class="pastille">Essai</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Je pense, donc je suis fou</h2>
+                <blockquote class="presentation"><p>Et si la pensée n’était pas une preuve de lucidité, mais le symptôme d’un mal plus profond ? Et si la vérité n’était qu’un arrangement collectif pour ne pas sombrer ? Et si croire, c’était simplement choisir la folie la plus confortable ?</p><p>Dans cet essai provocateur et poétique, N’dé Ando Dieudonné-Jean (alias Deus Dedit) interroge les fondations fragiles de nos certitudes. Entre logique détraquée, humour noir et lucidité grinçante, il nous invite à un voyage intérieur où le doute est roi, le langage un piège, et la foi… une échappatoire ?</p><p>Un texte sans dogme ni doctrine, pour celles et ceux qui osent penser jusqu’à l’absurde.</p><footer>Quatrième de couverture</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>N’dé Ando Dieudonné-Jean (alias Deus Dedit)</dd>
+                    <dt>Genre</dt><dd>Réflexion absurde sur la vérité, le langage et la foi</dd>
+                    <dt>Structure</dt><dd>Introduction, vingt et un chapitres, conclusion « L’indiscipline du regard »</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Pourquoi l’auteur dit-il que le langage est un mensonge structuré dans Je pense, donc je suis fou ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+
+        <article class="livre apparition" id="l-amour-est-une-superstition">
+            <img class="couverture-image" src="/assets/oeuvres/l-amour-est-une-superstition-480.webp" srcset="/assets/oeuvres/l-amour-est-une-superstition-480.webp 480w, /assets/oeuvres/l-amour-est-une-superstition-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de L’Amour est une superstition : un cœur et un chemin rouge sous un soleil couchant">
+            <div>
+                <div class="livre-meta"><span class="pastille">Essai poétique</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>L’Amour est une superstition</h2>
+                <blockquote class="presentation"><p>Et si l’amour n’était pas une union, mais une collision de solitudes ? Et si aimer, c’était inventer un autre soi dans le regard d’un autre fou ? Et si la passion n’était qu’un doux vertige avant la chute ?</p><p>Dans cette méditation poétique et provocante, N’dé Ando Dieudonné-Jean (alias Deus Dedit) explore les paradoxes de l’amour avec la même plume insolente et lucide que dans <em>Le Singularisme</em>. Entre dialogues intérieurs, aphorismes brisés et éclats d’absurde, il scrute les zones troubles où le désir frôle le délire, où la tendresse caresse la folie.</p><p>Un texte sans recette, sans morale, sans conclusion. Juste une dérive amoureuse pour celles et ceux qui osent penser avec le cœur… jusqu’au vertige.</p><footer>Quatrième de couverture</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>N’dé Ando Dieudonné-Jean (alias Deus Dedit)</dd>
+                    <dt>Genre</dt><dd>Réflexion absurde sur l’attachement, la fusion et la séparation</dd>
+                    <dt>Structure</dt><dd>Introduction, vingt et un chapitres, conclusion « L’amour, ce vertige lucide »</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Pourquoi l’auteur présente-t-il l’amour comme une superstition ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+
+        <article class="livre apparition" id="creer-c-est-resister">
+            <img class="couverture-image" src="/assets/oeuvres/creer-c-est-resister-480.webp" srcset="/assets/oeuvres/creer-c-est-resister-480.webp 480w, /assets/oeuvres/creer-c-est-resister-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="680" loading="lazy" decoding="async" alt="Couverture de Créer, c’est résister : un poing brandit une plume devant des motifs africains">
+            <div>
+                <div class="livre-meta"><span class="pastille">Essai · manifeste</span><span class="pastille pastille-neutre">Édition numérique en préparation</span></div>
+                <h2>Créer, c’est résister</h2>
+                <blockquote class="presentation"><p>Et si l’on volait ce que vous aviez de plus intime : votre voix ?</p><p>Dans un monde saturé d’images, de contenus, d’influences, la création africaine continue de lutter pour sa reconnaissance. Trop souvent pillée, citée sans être nommée, dépossédée de ses origines, elle est réduite au silence, tandis que d’autres s’en parent comme d’un costume emprunté.</p><p>À la fois essai, manifeste et témoignage, <em>Créer, c’est résister</em> est une exploration lucide et engagée de ce que signifie inventer, imaginer, raconter… dans un monde qui déforme et efface.</p><footer>Quatrième de couverture</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>Ando Dieudonné-Jean N’dé</dd>
+                    <dt>Genre</dt><dd>Essai, manifeste et témoignage — une parole contre le plagiat</dd>
+                    <dt>Structure</dt><dd>Introduction, dix chapitres dont « Le Singularisme comme défense de l’imaginaire » et « Une charte contre le plagiat », conclusion</dd>
+                    <dt>Éditeur</dt><dd>UNIQUE ART VISUEL STUDIO</dd>
+                </dl>
+                <div class="groupe-boutons">
+                    <button class="btn" type="button" data-assistant="Que propose la charte contre le plagiat dans Créer, c’est résister ?">Explorer avec l’assistant</button>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
+                </div>
+            </div>
+        </article>
+
+        <article class="livre apparition" id="le-singularisme">
+            <img class="couverture-image" src="/assets/oeuvres/le-singularisme-480.webp" srcset="/assets/oeuvres/le-singularisme-480.webp 480w, /assets/oeuvres/le-singularisme-960.webp 960w" sizes="(max-width: 680px) 240px, 260px" width="480" height="667" loading="lazy" decoding="async" alt="Couverture de Le Singularisme : un jeune homme devant une case, face à un arbre en forme de point d’interrogation">
+            <div>
+                <div class="livre-meta"><span class="pastille">Conte philosophique</span><span class="pastille pastille-neutre">Version condensée</span></div>
+                <h2>Le Singularisme</h2>
+                <blockquote class="presentation"><p>Dans un village oublié du monde, un jeune instituteur découvre que l’école ne suffit pas à comprendre la vie.</p><p>À Pupus, les jumeaux parlent par énigmes, les morts écoutent les vivants, Dieu ne s’explique pas, et les mots ne veulent jamais dire une seule chose.</p><p>À travers onze chapitres courts, profonds, parfois absurdes, <em>Le Singularisme</em> interroge la pensée moderne, la mémoire, la foi, le langage, le désir, et cette chose invisible qu’on appelle sens.</p><p>Entre conte philosophique, carnet initiatique et récit poétique, l’œuvre nous mène là où toute littérature commence : là où le silence devient connaissance.</p><footer>Quatrième de couverture</footer></blockquote>
+                <dl class="fiche">
+                    <dt>Auteur</dt><dd>Ando Dieudonné-Jean N’dé</dd>
+                    <dt>Genre</dt><dd>Conte philosophique moderne — une suite de nouvelles philosophiques et poétiques</dd>
+                    <dt>Structure</dt><dd>Prologue « Lire, c’est vivre » et onze chapitres</dd>
+                    <dt>Personnages</dt><dd>Kpa, Kundu, Monsieur Po, les jumeaux Eatte et Cako</dd>
+                    <dt>Édition</dt><dd>Version condensée de <em>Le Singularisme ou le Nouvel Homme</em> (Éditions Muse, 28 septembre 2023)</dd>
+                    <dt>Suite</dt><dd><a href="#un-instant-d-amour">Un instant d’amour</a></dd>
+                </dl>
+                <div class="groupe-boutons">
                     <button class="btn" type="button" data-assistant="Peux-tu m’expliquer la pensée du Singularisme ?">Explorer avec l’assistant</button>
-                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Voir en boutique</a>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
                 </div>
             </div>
         </article>
@@ -51,10 +249,31 @@
                 </dl>
                 <div class="groupe-boutons">
                     <button class="btn" type="button" data-assistant="Quels thèmes explore Le Pouvoir des Mots ?">Explorer avec l’assistant</button>
-                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Voir en boutique</a>
+                    <a class="btn btn-contour" href="{{BOUTIQUE_URL}}" target="_blank" rel="noopener">Boutique en ligne</a>
                 </div>
             </div>
         </article>
+        </div>
+    </div>
+</section>
+
+<section class="section section-sombre" id="univers" aria-labelledby="titreUnivers">
+    <div class="conteneur">
+        <div class="entete-section apparition">
+            <div>
+                <p class="surtitre">Univers et personnages</p>
+                <h2 id="titreUnivers">Un univers partagé</h2>
+                <p class="chapeau">D’un livre à l’autre, des lieux et des personnages se répondent. Lire une œuvre, c’est entrer dans les autres.</p>
+            </div>
+        </div>
+        <div class="grille grille-3 apparition">
+            <div class="carte"><span class="numero">Personnage</span><h3>Kpa</h3><p>Jeune instituteur, « l’homme qui pensait en citations », dans <em>Le Singularisme</em>. Kpa Emeric Alfred raconte ses « instants d’amour » dans <em>Un instant d’amour</em> ; Kpa Alfred écrit à Marie dans <em>Les Lignes d’ombre</em>.</p></div>
+            <div class="carte"><span class="numero">Lieu</span><h3>Pupus</h3><p>Le village oublié du <em>Singularisme</em>, où Kpa enseigne ; Mériam Kéita y enquête dans <em>Les Délires de Pupus</em>, et Kpa y retourne depuis Paris dans <em>Un instant d’amour</em>.</p></div>
+            <div class="carte"><span class="numero">Personnage</span><h3>Ei</h3><p>Père-fourmi dont le deuil fonde le Parti des Fourmis Libres dans <em>Les Enfants de la Nouvelle République</em> ; il apparaît aussi dans <em>Les Délires de Pupus</em> (« Le rêve d’Ei »).</p></div>
+            <div class="carte"><span class="numero">Personnage</span><h3>Kundu</h3><p>Sa mort est racontée dans <em>Le Singularisme</em> (« La mort de Kundu ») ; « enfant sans reçu », il hante chaque silence de Pupus dans <em>Les Délires de Pupus</em>, et il est le héros de la pièce <em>Le Mythe incompris de Kundu</em>.</p></div>
+            <div class="carte"><span class="numero">Pensée</span><h3>Le Singularisme</h3><p>Fil philosophique de l’œuvre, né avec <em>Le Singularisme ou le Nouvel Homme</em> : <em>Un instant d’amour</em> en est la suite, <em>Les Délires de Pupus</em> s’en inspire, et les essais <em>Je pense, donc je suis fou</em>, <em>L’Amour est une superstition</em> et <em>Créer, c’est résister</em> s’y réfèrent.</p></div>
+            <div class="carte"><span class="numero">Motif</span><h3>Le reçu et la preuve</h3><p>De Pupus à la Nouvelle République et au théâtre de Kundu, l’enfant sans papiers et la preuve administrative interrogent ce qui fait exister une personne.</p></div>
+        </div>
     </div>
 </section>
 

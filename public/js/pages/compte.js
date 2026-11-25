@@ -7,10 +7,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const zoneClient = document.getElementById("zoneClient");
     const panneaux = {
         connexion: document.getElementById("panneauConnexion"),
+        code: document.getElementById("panneauCode"),
         inscription: document.getElementById("panneauInscription"),
         oubli: document.getElementById("panneauOubli"),
         reinitialisation: document.getElementById("panneauReinitialisation")
     };
+    let jetonDeuxFacteurs = null;
     const onglets = document.querySelector(".onglets");
     const statutDe = (formulaire) => formulaire.querySelector(".statut");
 
@@ -46,10 +48,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     soumettre(panneaux.connexion, async (d) => {
-        const client = await Studio.api("/login", { method: "POST", body: { email: d.email, motDePasse: d.motDePasse } });
+        const resultat = await Studio.api("/login", { method: "POST", body: { email: d.email, motDePasse: d.motDePasse } });
+        if (resultat?.twofaRequis) {
+            jetonDeuxFacteurs = resultat.jeton;
+            panneaux.connexion.reset();
+            Studio.statut(statutDe(panneaux.connexion), "");
+            montrer("code");
+            document.getElementById("codeDeuxFacteurs").focus();
+            return;
+        }
         panneaux.connexion.reset();
         Studio.statut(statutDe(panneaux.connexion), "");
+        await ouvrirEspace(resultat);
+    });
+
+    soumettre(panneaux.code, async (d) => {
+        const client = await Studio.api("/login/2fa", { method: "POST", body: { jeton: jetonDeuxFacteurs, code: d.code } });
+        panneaux.code.reset();
+        Studio.statut(statutDe(panneaux.code), "");
+        if (client?.codeSecoursUtilise) {
+            Studio.avis(`Connexion par code de secours. Il vous reste ${client.codesSecoursRestants} code(s) de secours.`, "succes");
+        }
         await ouvrirEspace(client);
+    });
+    panneaux.code.querySelector("[data-retour-connexion]").addEventListener("click", () => {
+        jetonDeuxFacteurs = null;
+        montrer("connexion");
     });
 
     soumettre(panneaux.inscription, async (d) => {
@@ -124,6 +148,94 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    function blocCodesSecours(codes) {
+        return el("div", { class: "note" },
+            el("p", { text: "Conservez précieusement ces codes de secours. Chacun ne sert qu’une fois et vous permet de vous connecter si vous perdez votre téléphone." }),
+            el("ul", { class: "codes-secours" }, ...codes.map((code) => el("li", { text: code }))));
+    }
+
+    function demarrerActivation(zone, statut) {
+        Studio.statut(statut, "Préparation…");
+        Studio.api("/client/2fa/setup", { method: "POST" }).then((config) => {
+            Studio.statut(statut, "");
+            const champ = el("input", { id: "codeActivation", name: "code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", required: "" });
+            const formulaire = el("form", { class: "formulaire" },
+                el("p", { text: "1. Ouvrez votre application d’authentification et ajoutez un compte en scannant le lien ci-dessous, ou en saisissant cette clé manuellement :" }),
+                el("p", { class: "cle-2fa", text: config.secret }),
+                el("p", {}, el("a", { href: config.otpauth, text: "Ouvrir dans l’application d’authentification" })),
+                el("div", { class: "champ" }, el("label", { for: "codeActivation", text: "2. Saisissez le code à 6 chiffres affiché" }), champ),
+                el("button", { class: "btn", type: "submit", text: "Activer" }),
+                el("p", { class: "statut", role: "status", "aria-live": "polite" }));
+            const statutForm = formulaire.querySelector(".statut");
+            formulaire.addEventListener("submit", async (evenement) => {
+                evenement.preventDefault();
+                if (!formulaire.reportValidity()) return;
+                const bouton = formulaire.querySelector("button[type='submit']");
+                bouton.disabled = true;
+                Studio.statut(statutForm, "Vérification…");
+                try {
+                    const resultat = await Studio.api("/client/2fa/activate", { method: "POST", body: { code: champ.value } });
+                    zone.replaceChildren(
+                        el("p", { class: "note", text: "La double authentification est maintenant active." }),
+                        blocCodesSecours(resultat.codesSecours || []),
+                        boutonRafraichir(zone, statut));
+                } catch (erreur) {
+                    Studio.statut(statutForm, erreur.message, "erreur");
+                    bouton.disabled = false;
+                }
+            });
+            zone.replaceChildren(formulaire);
+        }).catch((erreur) => Studio.statut(statut, erreur.message, "erreur"));
+    }
+
+    function boutonRafraichir(zone, statut) {
+        const bouton = el("button", { class: "btn btn-discret", type: "button", text: "Terminer" });
+        bouton.addEventListener("click", () => rendreSecurite());
+        return bouton;
+    }
+
+    function formDesactivation(zone, statut) {
+        const champ = el("input", { id: "codeDesactivation", name: "code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "20", required: "" });
+        const formulaire = el("form", { class: "formulaire" },
+            el("div", { class: "champ" }, el("label", { for: "codeDesactivation", text: "Pour désactiver, saisissez un code de votre application (ou un code de secours)" }), champ),
+            el("button", { class: "btn btn-discret", type: "submit", text: "Désactiver la double authentification" }),
+            el("p", { class: "statut", role: "status", "aria-live": "polite" }));
+        const statutForm = formulaire.querySelector(".statut");
+        formulaire.addEventListener("submit", async (evenement) => {
+            evenement.preventDefault();
+            if (!formulaire.reportValidity()) return;
+            const bouton = formulaire.querySelector("button[type='submit']");
+            bouton.disabled = true;
+            Studio.statut(statutForm, "Vérification…");
+            try {
+                await Studio.api("/client/2fa/disable", { method: "POST", body: { code: champ.value } });
+                await rendreSecurite();
+                Studio.statut(document.getElementById("statut2fa"), "Double authentification désactivée.", "succes");
+            } catch (erreur) {
+                Studio.statut(statutForm, erreur.message, "erreur");
+                bouton.disabled = false;
+            }
+        });
+        return formulaire;
+    }
+
+    async function rendreSecurite() {
+        const zone = document.getElementById("zone2fa");
+        const statut = document.getElementById("statut2fa");
+        Studio.statut(statut, "");
+        let actif = false;
+        try { actif = (await Studio.api("/client/session"))?.twofaActive === true; } catch { /* session */ }
+        if (actif) {
+            zone.replaceChildren(
+                el("p", { class: "note", text: "✓ La double authentification est active sur votre compte." }),
+                formDesactivation(zone, statut));
+        } else {
+            const bouton = el("button", { class: "btn", type: "button", text: "Activer la double authentification" });
+            bouton.addEventListener("click", () => demarrerActivation(zone, statut));
+            zone.replaceChildren(bouton);
+        }
+    }
+
     async function ouvrirEspace(client) {
         zoneVisiteur.hidden = true;
         zoneClient.hidden = false;
@@ -133,7 +245,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             el("dt", { text: "E-mail" }), el("dd", { text: `${client.email}${client.emailVerifie ? " · confirmée" : " · non confirmée"}` }),
             el("dt", { text: "Téléphone" }), el("dd", { text: client.telephone || "—" }));
         document.getElementById("blocVerification").hidden = client.emailVerifie === true;
-        await Promise.all([chargerCommandes(), chargerDemandes()]);
+        await Promise.all([chargerCommandes(), chargerDemandes(), rendreSecurite()]);
     }
 
     const boutonVerification = document.getElementById("boutonVerification");

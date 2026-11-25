@@ -18,10 +18,10 @@
     <link rel="icon" type="image/jpeg" href="/assets/brand/unique-art-emblem.jpg">
     <link rel="preload" href="/assets/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/assets/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/css/studio.css?v=2343d25d29">
-    <script src="/js/core.js?v=2343d25d29" defer></script>
-    <script src="/js/assistant.js?v=2343d25d29" defer></script>
-    <script src="/js/pages/compte.js?v=2343d25d29" defer></script>
+    <link rel="stylesheet" href="/css/studio.css?v=7bf10e61f3">
+    <script src="/js/core.js?v=7bf10e61f3" defer></script>
+    <script src="/js/assistant.js?v=7bf10e61f3" defer></script>
+    <script src="/js/pages/compte.js?v=7bf10e61f3" defer></script>
 </head>
 <body data-page="compte" data-whatsapp="2250759875531">
     <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -75,6 +75,14 @@
                         <button class="btn btn-discret" type="button" id="lienOubli">Mot de passe oublié ?</button>
                         <p class="statut" role="status" aria-live="polite"></p>
                     </form>
+                    <form id="panneauCode" class="formulaire" hidden novalidate>
+                        <h2>Vérification en deux étapes</h2>
+                        <p>Saisissez le code à 6 chiffres affiché par votre application d’authentification. Vous pouvez aussi utiliser un code de secours.</p>
+                        <div class="champ"><label for="codeDeuxFacteurs">Code de vérification</label><input id="codeDeuxFacteurs" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="20" required></div>
+                        <button class="btn" type="submit">Valider</button>
+                        <button class="btn btn-discret" type="button" data-retour-connexion>Annuler</button>
+                        <p class="statut" role="status" aria-live="polite"></p>
+                    </form>
                     <form id="panneauInscription" class="formulaire" role="tabpanel" aria-labelledby="ongletInscription" hidden novalidate>
                         <div class="champ"><label for="inscriptionNom">Nom complet ou structure</label><input id="inscriptionNom" name="nom" autocomplete="name" required maxlength="100"></div>
                         <div class="champ"><label for="inscriptionEmail">Adresse e-mail</label><input id="inscriptionEmail" name="email" type="email" autocomplete="email" required maxlength="150"></div>
@@ -115,6 +123,7 @@
             <div class="conteneur admin-grille">
                 <nav class="admin-menu" aria-label="Rubriques du compte">
                     <a href="#profil">Profil</a>
+                    <a href="#securite">Sécurité</a>
                     <a href="#commandes">Commandes et paiements</a>
                     <a href="#demandes">Demandes et projets</a>
                     <a href="#telechargements">Téléchargements</a>
@@ -130,6 +139,12 @@
                             <p class="statut" id="statutVerification" role="status" aria-live="polite"></p>
                         </div>
                         <div class="groupe-boutons"><button class="btn btn-discret" type="button" id="boutonDeconnexion">Se déconnecter</button></div>
+                    </div>
+                    <div class="panneau" id="securite">
+                        <h2>Sécurité du compte</h2>
+                        <p>La double authentification ajoute une étape à la connexion : en plus de votre mot de passe, un code à 6 chiffres fourni par une application d’authentification (Google Authenticator, Authy…). Même si votre mot de passe est deviné, personne ne peut entrer sans votre téléphone.</p>
+                        <div id="zone2fa"></div>
+                        <p class="statut" id="statut2fa" role="status" aria-live="polite"></p>
                     </div>
                     <div class="panneau" id="commandes">
                         <h2>Commandes et paiements</h2>

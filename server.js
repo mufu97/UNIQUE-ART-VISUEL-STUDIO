@@ -785,6 +785,89 @@ function lireSessionPartagePosition(request) {
     return lireJeton(request, "unique_art_location_share", USAGE_PARTAGE_POSITION);
 }
 
+// --- Double authentification (TOTP, compatible Google Authenticator, Authy, etc.) ---
+const USAGE_2FA_ATTENTE = "2fa-attente";
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function genererSecret2fa() {
+    let bits = "";
+    for (const octet of crypto.randomBytes(20)) bits += octet.toString(2).padStart(8, "0");
+    let secret = "";
+    for (let i = 0; i + 5 <= bits.length; i += 5) secret += BASE32_ALPHABET[parseInt(bits.slice(i, i + 5), 2)];
+    return secret;
+}
+
+function decoderBase32(secret) {
+    let bits = "";
+    for (const caractere of String(secret).replace(/=+$/, "").toUpperCase()) {
+        const valeur = BASE32_ALPHABET.indexOf(caractere);
+        if (valeur !== -1) bits += valeur.toString(2).padStart(5, "0");
+    }
+    const octets = [];
+    for (let i = 0; i + 8 <= bits.length; i += 8) octets.push(parseInt(bits.slice(i, i + 8), 2));
+    return Buffer.from(octets);
+}
+
+function codeTotp(secret, compteur) {
+    const tampon = Buffer.alloc(8);
+    tampon.writeBigInt64BE(BigInt(compteur));
+    const hmac = crypto.createHmac("sha1", decoderBase32(secret)).update(tampon).digest();
+    const decalage = hmac[hmac.length - 1] & 0xf;
+    const binaire = ((hmac[decalage] & 0x7f) << 24) | ((hmac[decalage + 1] & 0xff) << 16)
+        | ((hmac[decalage + 2] & 0xff) << 8) | (hmac[decalage + 3] & 0xff);
+    return (binaire % 1000000).toString().padStart(6, "0");
+}
+
+function verifierCodeTotp(secret, code) {
+    const saisi = String(code || "").replace(/\s/g, "");
+    if (!/^\d{6}$/.test(saisi) || !secret) return false;
+    const pas = Math.floor(Date.now() / 1000 / 30);
+    for (let fenetre = -1; fenetre <= 1; fenetre += 1) {
+        const attendu = codeTotp(secret, pas + fenetre);
+        const a = Buffer.from(attendu);
+        const b = Buffer.from(saisi);
+        if (a.length === b.length && crypto.timingSafeEqual(a, b)) return true;
+    }
+    return false;
+}
+
+function uriOtpauth(secret, email) {
+    const label = encodeURIComponent(`UNIQUE ART VISUEL STUDIO:${email}`);
+    return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent("UNIQUE ART VISUEL STUDIO")}&digits=6&period=30`;
+}
+
+function genererCodesSecours() {
+    const codes = [];
+    for (let i = 0; i < 8; i += 1) codes.push(crypto.randomBytes(5).toString("hex"));
+    return codes;
+}
+
+function hacherCodeSecours(code) {
+    return crypto.createHash("sha256").update(String(code).toLowerCase().replace(/\s/g, "")).digest("hex");
+}
+
+function signerJeton2faAttente(client) {
+    return signerJeton(USAGE_2FA_ATTENTE, {
+        clientId: client.id,
+        sessionVersion: client.sessionVersion || 0,
+        expireLe: Date.now() + 5 * 60 * 1000
+    });
+}
+
+function verifierJetonChaine(usage, token) {
+    const [charge, signature, ...reste] = String(token || "").split(".");
+    if (!charge || !signature || reste.length) return null;
+    const attendue = crypto.createHmac("sha256", CLIENT_SESSION_SECRET).update(`${usage}.${charge}`).digest();
+    const recue = Buffer.from(signature, "base64url");
+    if (recue.length !== attendue.length || !crypto.timingSafeEqual(recue, attendue)) return null;
+    try {
+        const s = JSON.parse(Buffer.from(charge, "base64url").toString("utf8"));
+        return s && s.usage === usage && s.expireLe > Date.now() ? s : null;
+    } catch {
+        return null;
+    }
+}
+
 function limiterReinitialisationMotDePasseAtteint(request) {
     const now = Date.now();
     const address = getClientAddress(request);
@@ -1206,8 +1289,95 @@ async function handleApi(request, response, url) {
         }
         sendJson(response, 200, {
             id: client.id, nom: client.nom, email: client.email, telephone: client.telephone,
-            emailVerifie: client.emailVerifie === true
+            emailVerifie: client.emailVerifie === true,
+            twofaActive: client.totp?.enabled === true
         });
+        return true;
+    }
+
+    // --- Gestion de la double authentification par le client connecté ---
+    if (url.pathname === "/api/client/2fa/setup" && request.method === "POST") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+        if (client.totp?.enabled) {
+            sendJson(response, 400, { error: "La double authentification est déjà active." });
+            return true;
+        }
+        const secret = genererSecret2fa();
+        await avecVerrouStore(async () => {
+            const store = await readStore();
+            const compte = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!compte) return;
+            compte.totpAttente = { secret, expireLe: Date.now() + 15 * 60 * 1000 };
+            await writeStore(store);
+        });
+        sendJson(response, 200, { secret, otpauth: uriOtpauth(secret, client.email) });
+        return true;
+    }
+
+    if (url.pathname === "/api/client/2fa/activate" && request.method === "POST") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+        readBody(request).then((body) => avecVerrouStore(async () => {
+            const store = await readStore();
+            const compte = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!compte) {
+                sendJson(response, 401, { error: "Veuillez vous reconnecter." });
+                return;
+            }
+            const attente = compte.totpAttente;
+            if (!attente || Number(attente.expireLe) < Date.now()) {
+                sendJson(response, 400, { error: "La configuration a expiré. Recommencez l’activation." });
+                return;
+            }
+            if (!verifierCodeTotp(attente.secret, body.code)) {
+                sendJson(response, 400, { error: "Code incorrect. Vérifiez l’heure de votre téléphone, puis réessayez." });
+                return;
+            }
+            const codes = genererCodesSecours();
+            compte.totp = { enabled: true, secret: attente.secret, codesSecours: codes.map(hacherCodeSecours) };
+            delete compte.totpAttente;
+            await writeStore(store);
+            sendJson(response, 200, { ok: true, codesSecours: codes });
+        })).catch((error) => sendJson(response, 400, { error: error.message }));
+        return true;
+    }
+
+    if (url.pathname === "/api/client/2fa/disable" && request.method === "POST") {
+        const client = await obtenirClientConnecte(request);
+        if (!client) {
+            sendJson(response, 401, { error: "Veuillez vous connecter à votre compte client." });
+            return true;
+        }
+        readBody(request).then((body) => avecVerrouStore(async () => {
+            const store = await readStore();
+            const compte = store.clients.find((item) => String(item.id) === String(client.id));
+            if (!compte) {
+                sendJson(response, 401, { error: "Veuillez vous reconnecter." });
+                return;
+            }
+            if (!compte.totp?.enabled) {
+                sendJson(response, 200, { ok: true });
+                return;
+            }
+            const code = String(body.code || "").replace(/\s/g, "");
+            const valide = verifierCodeTotp(compte.totp.secret, code)
+                || (compte.totp.codesSecours || []).includes(hacherCodeSecours(code));
+            if (!valide) {
+                sendJson(response, 400, { error: "Code incorrect : la double authentification reste active." });
+                return;
+            }
+            delete compte.totp;
+            delete compte.totpAttente;
+            await writeStore(store);
+            sendJson(response, 200, { ok: true });
+        })).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;
     }
 
@@ -2657,12 +2827,63 @@ async function handleApi(request, response, url) {
                 });
             }
 
+            if (client.totp?.enabled) {
+                // Mot de passe correct : on exige le second facteur avant d'ouvrir la session.
+                sendJson(response, 200, { twofaRequis: true, jeton: signerJeton2faAttente(client) });
+                return;
+            }
             sendJson(response, 200, {
                 id: client.id,
                 nom: client.nom,
                 email: client.email,
                 telephone: client.telephone,
                 emailVerifie: client.emailVerifie === true
+            }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id, client.sessionVersion || 0)) });
+        }).catch((error) => sendJson(response, 400, { error: error.message }));
+        return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/login/2fa") {
+        readBody(request).then(async (body) => {
+            const adresse = getClientAddress(request);
+            if (limiteAtteinte("connexion-ip", adresse, 30, 15 * 60 * 1000)) {
+                sendJson(response, 429, { error: "Trop de tentatives. Réessayez dans 15 minutes." }, { "Retry-After": "900" });
+                return;
+            }
+            const attente = verifierJetonChaine(USAGE_2FA_ATTENTE, body.jeton);
+            if (!attente) {
+                sendJson(response, 401, { error: "Session de connexion expirée. Saisissez de nouveau votre mot de passe." });
+                return;
+            }
+            const resultat = await avecVerrouStore(async () => {
+                const store = await readStore();
+                const compte = store.clients.find((item) => String(item.id) === String(attente.clientId));
+                if (!compte || (attente.sessionVersion || 0) !== (compte.sessionVersion || 0) || !compte.totp?.enabled) {
+                    return { statut: 401 };
+                }
+                const code = String(body.code || "").replace(/\s/g, "");
+                if (verifierCodeTotp(compte.totp.secret, code)) return { statut: 200, client: compte };
+                const indice = (compte.totp.codesSecours || []).indexOf(hacherCodeSecours(code));
+                if (indice !== -1) {
+                    compte.totp.codesSecours.splice(indice, 1);
+                    await writeStore(store);
+                    return { statut: 200, client: compte, secours: true };
+                }
+                return { statut: 401 };
+            });
+            if (resultat.statut !== 200) {
+                sendJson(response, 401, { error: "Code de vérification incorrect." });
+                return;
+            }
+            const client = resultat.client;
+            sendJson(response, 200, {
+                id: client.id,
+                nom: client.nom,
+                email: client.email,
+                telephone: client.telephone,
+                emailVerifie: client.emailVerifie === true,
+                codeSecoursUtilise: resultat.secours === true,
+                codesSecoursRestants: (client.totp.codesSecours || []).length
             }, { "Set-Cookie": cookieSessionClient(creerSessionClient(client.id, client.sessionVersion || 0)) });
         }).catch((error) => sendJson(response, 400, { error: error.message }));
         return true;

@@ -446,3 +446,8 @@ input[type="file"]::file-selector-button:hover { border-color: var(--or); backgr
     .nav-principale ul { gap: clamp(12px, 1.25vw, 22px); }
     .nav-principale a { font-size: .74rem; letter-spacing: .1em; }
 }
+
+/* Double authentification (espace client) */
+.cle-2fa { font-family: "Courier New", monospace; font-size: 1.15rem; letter-spacing: .18em; word-break: break-all; padding: 10px 12px; border-radius: 8px; background: rgba(201,162,39,.12); }
+.codes-secours { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin: 8px 0 0; padding-left: 0; list-style: none; }
+.codes-secours li { font-family: "Courier New", monospace; letter-spacing: .12em; }

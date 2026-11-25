@@ -4,14 +4,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const { el } = Studio;
 
-    const oeuvres = document.getElementById("selectionOeuvres");
-    Catalogue.oeuvres.forEach((oeuvre) => {
-        oeuvres?.append(el("a", { class: "carte apparition visible", href: `/oeuvres#${oeuvre.id}` },
-            el("span", { class: "numero", text: oeuvre.genre }),
-            el("h3", { text: oeuvre.titre }),
-            el("p", { text: oeuvre.resume }),
-            el("span", { class: "lien-fleche", text: "Lire la fiche" })));
-    });
+    document.getElementById("selectionOeuvres")?.replaceChildren(...Catalogue.oeuvres.slice(0, 5).map(Catalogue.vignette));
 
     const selection = document.getElementById("selectionCreations");
     let creations = [];

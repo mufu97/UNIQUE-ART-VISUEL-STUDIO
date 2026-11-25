@@ -742,10 +742,18 @@
     });
 
     async function authenticate(email, password) {
-        const client = await callApi("/login", {
+        let client = await callApi("/login", {
             method: "POST",
             body: JSON.stringify({ email, motDePasse: password })
         });
+        if (client && client.twofaRequis) {
+            const code = window.prompt("Vérification en deux étapes : saisissez le code à 6 chiffres de votre application d’authentification (ou un code de secours).");
+            if (!code) throw new Error("Connexion annulée : code de vérification requis.");
+            client = await callApi("/login/2fa", {
+                method: "POST",
+                body: JSON.stringify({ jeton: client.jeton, code: String(code).trim() })
+            });
+        }
         const inventory = await callApi("/client/devices");
         if (!Array.isArray(inventory?.appareils) || inventory.appareils.length > MAX_DEVICES
             || !inventory.appareils.every(isValidDevice)) {

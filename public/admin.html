@@ -18,10 +18,10 @@
     <link rel="icon" type="image/jpeg" href="/assets/brand/unique-art-emblem.jpg">
     <link rel="preload" href="/assets/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/assets/fonts/manrope-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/css/studio.css?v=20261118">
-    <script src="/js/core.js?v=20261118" defer></script>
-    <script src="/js/catalogue.js?v=20261118" defer></script>
-    <script src="/js/pages/admin.js?v=20261118" defer></script>
+    <link rel="stylesheet" href="/css/studio.css?v=7bf10e61f3">
+    <script src="/js/core.js?v=7bf10e61f3" defer></script>
+    <script src="/js/catalogue.js?v=7bf10e61f3" defer></script>
+    <script src="/js/pages/admin.js?v=7bf10e61f3" defer></script>
 </head>
 <body data-page="" data-whatsapp="2250759875531">
     <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -157,6 +157,14 @@
                         </form>
                         <h3>Œuvres indexées</h3>
                         <ul class="liste-elements" id="listeBibliotheque"></ul>
+                        <h3>Tester la recherche</h3>
+                        <p class="mention-donnees">Vérifiez quels passages l’assistant utiliserait pour répondre à une question de lecteur (aucun appel au fournisseur d’IA).</p>
+                        <form id="formulaireTestRecherche" class="formulaire" novalidate>
+                            <div class="champ"><label for="questionTest">Question</label><input id="questionTest" name="question" required maxlength="2000" placeholder="Ex. Pourquoi Kundu n’a-t-il pas de reçu ?"></div>
+                            <button class="btn btn-discret" type="submit">Rechercher les passages</button>
+                            <p class="statut" role="status" aria-live="polite"></p>
+                        </form>
+                        <ul class="liste-elements" id="resultatsTestRecherche"></ul>
                     </div>
 
                     <div class="panneau" id="services-externes">

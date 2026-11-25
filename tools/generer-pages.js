@@ -17,7 +17,21 @@ const SOURCES = path.join(RACINE, "site", "pages");
 const SORTIE = path.join(RACINE, "public");
 // Adresse publique actuelle. À remplacer par le nom de domaine définitif lorsqu'il sera choisi.
 const URL_SITE = (process.env.SITE_URL || "https://unique-art-visuel-studio.vercel.app").replace(/\/$/, "");
-const VERSION = process.env.ASSETS_VERSION || new Date().toISOString().slice(0, 10).replace(/-/g, "");
+// Version des feuilles de style et scripts : empreinte de leur contenu. Elle change dès qu'un fichier
+// change, ce qui est indispensable puisque ces fichiers sont mis en cache un an (« immutable »).
+const VERSION = process.env.ASSETS_VERSION || (() => {
+    const empreinte = require("crypto").createHash("sha256");
+    const parcourir = (dossier) => fs.readdirSync(dossier, { withFileTypes: true })
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((entree) => {
+            const chemin = path.join(dossier, entree.name);
+            if (entree.isDirectory()) parcourir(chemin);
+            else if (/\.(css|js)$/.test(entree.name)) empreinte.update(entree.name).update(fs.readFileSync(chemin));
+        });
+    parcourir(path.join(SORTIE, "css"));
+    parcourir(path.join(SORTIE, "js"));
+    return empreinte.digest("hex").slice(0, 10);
+})();
 const NOM = "UNIQUE ART VISUEL STUDIO";
 const CONTACT = JSON.parse(fs.readFileSync(path.join(RACINE, "site", "contact.json"), "utf8"));
 

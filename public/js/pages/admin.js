@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const documents = await Studio.api("/admin/knowledge");
         document.getElementById("listeBibliotheque").replaceChildren(...(documents.length
             ? documents.map((document_) => element(document_.title, `Indexé le ${Studio.date(document_.updatedAt)}`,
-                el("p", { text: `${document_.fileName} · ${document_.pages ? `${document_.pages} pages · ` : ""}${document_.chunkCount} passages · ${document_.characterCount.toLocaleString("fr-FR")} caractères` }),
+                el("p", { text: `${document_.fileName} · ${document_.pages ? `${document_.pages} pages · ` : ""}${document_.chunkCount} passages · ${document_.chapterCount ? `${document_.chapterCount} chapitres ou sections · ` : ""}${document_.characterCount.toLocaleString("fr-FR")} caractères` }),
                 el("div", { class: "actions-element" }, el("button", {
                     class: "btn btn-discret btn-danger", type: "button", text: "Retirer de la bibliothèque",
                     onclick: async () => {
@@ -197,6 +197,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         formulaire.reset();
         await bibliotheque();
         return resultat.message;
+    });
+
+    gererFormulaire(document.getElementById("formulaireTestRecherche"), async (formulaire) => {
+        const resultats = await Studio.api("/admin/knowledge/search", { method: "POST", body: { question: formulaire.question.value } });
+        document.getElementById("resultatsTestRecherche").replaceChildren(...(resultats.length
+            ? resultats.map((resultat) => element(resultat.reference, `pertinence ${resultat.score}`, el("p", { text: `${resultat.extrait}…` })))
+            : [el("li", { class: "element", text: "Aucun passage pertinent : l’assistant répondrait qu’il ne peut pas vérifier l’information." })]));
+        return `${resultats.length} passage(s) retrouvé(s).`;
     });
 
     document.getElementById("actualiserTableau").addEventListener("click", chargerTout);

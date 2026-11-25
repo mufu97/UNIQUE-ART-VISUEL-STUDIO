@@ -16,6 +16,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statut = document.getElementById("commandeStatut");
     let formule = null;
 
+    document.getElementById("librairieOeuvres")?.replaceChildren(...Catalogue.oeuvres.map(Catalogue.vignette));
+
     const sante = await Studio.sante();
     const paiementOuvert = Boolean(sante?.providers?.payments);
     document.getElementById("paiementIndisponible").hidden = paiementOuvert;
